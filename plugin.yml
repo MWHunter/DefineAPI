@@ -1,0 +1,28 @@
+name: DefineAPI
+main: defineoutside.main.MainAPI
+version: 1.0
+api-version: 1.15
+depend: [ProtocolLib]
+commands:
+  debugmg:
+    description: Debug
+  debugworld:
+    description: Debug
+  whatgame:
+    description: Debug
+  hub:
+    description: Life is an illusion.
+  lobby:
+    description: Life is definitely an illusion
+  leave:
+    description: If life is an illusion, is death an illusion?
+  reloadconfigs:
+    description: Do not run this command
+  setuuid:
+    description: DO NOT RUN THIS COMMAND
+  getuuid:
+    description: Okay, fine, you can run this meaningless command
+  joinqueue:
+    description: Usage - /Joinqueue Bedwars
+  setgametype:
+    description: Types are lobby, gamelobby, and bedwars

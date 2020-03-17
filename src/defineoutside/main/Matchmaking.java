@@ -60,7 +60,6 @@ public class Matchmaking {
                 for (UUID playerUUID2 : playersLookingForGameType.keySet()) {
                     // Player is locked while transferring between games
                     // Previously players could create ~20 games while in the process of being transferred, basically causing a five second lagspike
-                    // Thankfully this was caught in testing, whatever that is.
                     if (playersLookingForGameType.get(playerUUID2).equals(gametype) && !pm.getDefinePlayer(playerUUID).isLockInGame()) {
                         playersFoundGame.add(playerUUID2);
                     }
@@ -88,11 +87,11 @@ public class Matchmaking {
                                     break;
                                 }
 
-                                /*if (gl.getLobbyForGametype().equals("any")) {
+                                if (gl.getLobbyForGametype().equals("any")) {
                                     gameFound = gm.getGamesHashMap().get(game);
                                     gl.setLobbyForGametype(gametype.substring(gametype.indexOf(":") + 2));
                                     break;
-                                }*/
+                                }
                             }
                         }
                     } else {

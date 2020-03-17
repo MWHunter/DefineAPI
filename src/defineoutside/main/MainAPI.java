@@ -2,6 +2,7 @@ package defineoutside.main;
 
 import defineoutside.creator.Game;
 import defineoutside.games.DisabledDimension;
+import defineoutside.games.GameLobby;
 import defineoutside.games.Lobby;
 import defineoutside.listener.*;
 import defineoutside.network.PlayerQueue;
@@ -12,6 +13,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -31,6 +34,7 @@ public class MainAPI extends JavaPlugin implements Listener {
 
     public static String internalServerIdentifier;
     //private ProtocolManager protocolManager;
+    public static String lobbyType;
 
     public void onEnable() {
         plugin = this;
@@ -51,8 +55,10 @@ public class MainAPI extends JavaPlugin implements Listener {
             try {
 
                 // Cleaning is just deleting all files in it, without deleting the directory
-                FileUtils.cleanDirectory(new File(
-                        getServer().getWorldContainer() + File.separator + "world" + File.separator + "playerdata"));
+                File mainWorld = new File(getServer().getWorldContainer() + File.separator + "world");
+                if (mainWorld.exists()) {
+                    FileUtils.deleteDirectory(mainWorld);
+                }
 
                 // Delete all root folders with a UUID in it's name
                 for (File file : Bukkit.getWorldContainer().listFiles()) {
@@ -99,18 +105,18 @@ public class MainAPI extends JavaPlugin implements Listener {
 
         Bukkit.getPluginManager().registerEvents(new WorldInitEvent(), this);
 
-        Game gameOverworld = new Lobby();
-        gameOverworld.setWorldFolder(new File("world"));
-        gameOverworld.createGameWorldAndRegisterGame();
+        File main = new File(getPlugin().getDataFolder() + File.separator + "main.yml");
+        FileConfiguration fileConfiguration = YamlConfiguration.loadConfiguration(main);
+        lobbyType = fileConfiguration.getString("Mainworld");
 
-        DisabledDimension gameNether = new DisabledDimension();
-        gameNether.setGameType("world_nether");
-        gameNether.createGameWorldAndRegisterGame();
+        File fromFolder = new File(getPlugin().getDataFolder() + File.separator + "lobbies" + File.separator + lobbyType);
+        File toFolder = getServer().getWorldContainer();
 
-        DisabledDimension gameEnd = new DisabledDimension();
-        gameEnd.setGameType("world_the_end");
-        gameEnd.createGameWorldAndRegisterGame();
-
+        try {
+            FileUtils.copyDirectory(fromFolder, toFolder);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         // Connect to the mainframe (pls don't hack the mainframe) (mainframe ready when UUID set)
         new BukkitRunnable() {
@@ -192,7 +198,7 @@ public class MainAPI extends JavaPlugin implements Listener {
         if (label.equalsIgnoreCase("joinqueue")) {
             if (args.length != 0) {
                 Matchmaking mm = new Matchmaking();
-                mm.addPlayer(((Player) sender).getUniqueId(), args[0]);
+                mm.addPlayerToCentralQueue(((Player) sender).getUniqueId(), args[0]);
             }
         }
 
@@ -220,8 +226,20 @@ public class MainAPI extends JavaPlugin implements Listener {
         }
 
         if (label.equalsIgnoreCase("setgametype")) {
-            if (sender.hasPermission("DefineAPI.manage")) {
-
+            if (sender.hasPermission("DefineAPI.manage") && args.length != 0) {
+                Bukkit.getScheduler().runTaskAsynchronously(this, new Runnable() {
+                    @Override
+                    public void run() {
+                        File file = new File(getPlugin().getDataFolder() + File.separator + "main.yml");
+                        FileConfiguration mainConfig = YamlConfiguration.loadConfiguration(file);
+                        mainConfig.set("Mainworld", args[0]);
+                        try {
+                            mainConfig.save(file);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
             }
         }
 
@@ -234,5 +252,30 @@ public class MainAPI extends JavaPlugin implements Listener {
 
     public static String getInternalServerIdentifier() {
         return internalServerIdentifier;
+    }
+
+    public static void loadPostWorld() {
+        File main = new File(getPlugin().getDataFolder() + File.separator + "main.yml");
+        FileConfiguration fileConfiguration = YamlConfiguration.loadConfiguration(main);
+        String lobbyType = fileConfiguration.getString("Mainworld");
+
+        // TODO: Change this when needed
+        if (lobbyType.equalsIgnoreCase("lobby")) {
+            Game gameOverworld = new Lobby();
+            gameOverworld.setWorldFolder(new File("world"));
+            gameOverworld.createGameWorldAndRegisterGame();
+        } else {
+            Game gameOverworld = new GameLobby();
+            gameOverworld.setWorldFolder(new File("world"));
+            gameOverworld.createGameWorldAndRegisterGame();
+        }
+
+        /*DisabledDimension gameNether = new DisabledDimension();
+        gameNether.setGameType("world_nether");
+        gameNether.createGameWorldAndRegisterGame();
+
+        DisabledDimension gameEnd = new DisabledDimension();
+        gameEnd.setGameType("world_the_end");
+        gameEnd.createGameWorldAndRegisterGame();*/
     }
 }

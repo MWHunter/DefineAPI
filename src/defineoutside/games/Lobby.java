@@ -10,7 +10,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -22,21 +21,20 @@ public class Lobby extends Game {
 
     private boolean isStarting = false;
 
-    public Location joinServerLocation = new Location(Bukkit.getWorld("world"), 0, 61 ,0);
-
     @Override
     public void createGameWorldAndRegisterGame() {
         ConfigManager cm = new ConfigManager();
 
         // Set game type before so it loads the right configs
         setGameType("lobby");
-        super.createGameWorldAndRegisterGame();
 
         DefineWorld dwWorld = new DefineWorld();
         dwWorld.createArena("world", null);
         setGameWorld(dwWorld);
 
         setAllowPlayerMoveOnJoin(true);
+        setAllowPlayerDoubleJump(true);
+        setAllowGoldenLaunchpads(true);
         setAllowPlayersToJoinNow(true);
         setAlwaysAllowPlayersJoin(true);
         setAllowPlayerDamage(false);
@@ -49,6 +47,8 @@ public class Lobby extends Game {
         gm.registerWorld(getGameUUID(), dwWorld);
 
         spawnItemList = cm.getRandomKit(getGameType());
+
+        setJoinServerLocation(new Location(Bukkit.getWorld("world"), 0, 61, 0));
     }
 
     // TODO: This gets called twice for some reason.
@@ -89,51 +89,6 @@ public class Lobby extends Game {
         dp.setKit(getSpawnKitName());
 
         playerLoad(player);
-
-        attemptStart();
-    }
-
-    @Override
-    public void playerRespawn(UUID uuid, boolean canMove, boolean kitSelector) {
-        PlayerManager pm = new PlayerManager();
-        ConfigManager cm = new ConfigManager();
-        Player bukkitPlayer = Bukkit.getPlayer(uuid);
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
-
-        // This will null pointer if the player leaves the same tick as the game starts
-        try {
-            bukkitPlayer.setGameMode(GameMode.SURVIVAL);
-            bukkitPlayer.setHealth(20);
-
-            bukkitPlayer.setAllowFlight(allowPlayerDoubleJump);
-        } catch (NullPointerException e) {
-            MainAPI.getPlugin().getLogger().log(Level.WARNING, "Player left the same tick as the game started or as the player respawned!  Attempting to recover from this error!");
-        }
-
-        ItemStack[] giveItems;
-
-
-        givePlayerKit(bukkitPlayer, spawnItemList);
-
-        if (!(bukkitPlayer.getWorld().getName().equalsIgnoreCase("world"))) {
-            Location teleportLocation = new Location(Bukkit.getWorld("world"), 0, 61, 0);
-
-            PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
-                if (result) {
-                    if (canMove == false) {
-                        definePlayer.setFreeze(true);
-                    }
-                } else {
-                    bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
-                    Matchmaking mm = new Matchmaking();
-                    mm.addPlayer(uuid, "lobby");
-                }
-            });
-        }
-
-        if (canMove == false) {
-            definePlayer.setFreeze(true);
-        }
     }
 
     @Override
@@ -151,6 +106,45 @@ public class Lobby extends Game {
                 new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, true, false));
 
         playerRespawn(uuid, true, true);
+    }
+
+    @Override
+    public void playerRespawn(UUID uuid, boolean canMove, boolean kitSelector) {
+        PlayerManager pm = new PlayerManager();
+        Player bukkitPlayer = Bukkit.getPlayer(uuid);
+        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
+
+        // This will null pointer if the player leaves the same tick as the game starts
+        try {
+            bukkitPlayer.setGameMode(GameMode.SURVIVAL);
+            bukkitPlayer.setHealth(20);
+
+            bukkitPlayer.setAllowFlight(allowPlayerDoubleJump);
+        } catch (NullPointerException e) {
+            MainAPI.getPlugin().getLogger().log(Level.WARNING, "Player left the same tick as the game started or as the player respawned!  Attempting to recover from this error!");
+        }
+
+        givePlayerKit(bukkitPlayer, spawnItemList);
+
+        if (!(bukkitPlayer.getWorld().getName().equalsIgnoreCase("world"))) {
+            Location teleportLocation = new Location(Bukkit.getWorld("world"), 0, 70, 0);
+
+            PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
+                if (result) {
+                    if (canMove == false) {
+                        definePlayer.setFreeze(true);
+                    }
+                } else {
+                    bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
+                    Matchmaking mm = new Matchmaking();
+                    mm.addPlayerToCentralQueue(uuid, "lobby");
+                }
+            });
+        }
+
+        if (canMove == false) {
+            definePlayer.setFreeze(true);
+        }
     }
 
     /*@Override
@@ -188,7 +182,6 @@ public class Lobby extends Game {
         } catch (Exception e) {
             playerLeave(player);
         }
-
     }*/
 
     @Override

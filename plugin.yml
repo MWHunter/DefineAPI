@@ -1,6 +1,7 @@
 name: DefineAPI
 main: defineoutside.main.MainAPI
 version: 1.0
+load: STARTUP
 api-version: 1.15
 depend: [ProtocolLib]
 commands:

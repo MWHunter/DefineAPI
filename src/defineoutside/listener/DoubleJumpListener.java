@@ -24,8 +24,8 @@ public class DoubleJumpListener implements Listener {
             player.playSound(player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1, 1);
 
             Vector newVelocity = player.getLocation().getDirection().multiply(1.6d);
-            newVelocity.setY(Math.abs(newVelocity.getY()) * 0.4);
-            newVelocity.setY(newVelocity.getY() + 0.6);
+            newVelocity.setY(Math.abs(newVelocity.getY()) * 0.8);
+            newVelocity.setY(newVelocity.getY() + 0.35);
 
             player.setVelocity(newVelocity);
         }

@@ -19,7 +19,7 @@ public class EntityDamageListener implements Listener {
         }
 
         // Death
-        if (event.getEntity() instanceof HumanEntity && ((Player) event.getEntity()).getHealth() - event.getFinalDamage() <= 0) {
+        if (event.getEntity() instanceof HumanEntity && !event.isCancelled() && ((Player) event.getEntity()).getHealth() - event.getFinalDamage() <= 0) {
             PlayerManager pm = new PlayerManager();
             GameManager gm = new GameManager();
 

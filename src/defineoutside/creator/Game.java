@@ -6,11 +6,8 @@ import org.bukkit.*;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.ArrayUtils;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
-import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
@@ -57,6 +54,7 @@ public class Game {
     private boolean allowWeatherChange = false;
     private boolean allowPlayerDamage = true;
     public boolean allowPlayerShootProjectile = false;
+    private boolean allowGoldenLaunchpads = false;
 
     private boolean allowPlayerMoveOnJoin = true;
     public boolean allowPlayerDoubleJump = false;
@@ -103,7 +101,7 @@ public class Game {
 
     Random random = new Random();
 
-    public Location joinServerLocation = new Location(Bukkit.getWorld("world"), 0, 70 ,0);
+    public Location joinServerLocation = new Location(Bukkit.getWorld("world"), 0, 70, 0);
 
     public void createGameWorldAndRegisterGame() {
 
@@ -367,21 +365,21 @@ public class Game {
         // Check if the player has already been teleported to a valid spawn position
         //if (!definePlayer.getPlayerTeam().containsSpawn((int) bukkitPlayer.getLocation().getX(), (int) bukkitPlayer.getLocation().getZ()) &&
         //        !bukkitPlayer.getGameMode().equals(GameMode.SPECTATOR) && !bukkitPlayer.getLocation().getWorld().getName().equals(getGameWorld().getBukkitWorld().getName())) {
-            Location teleportLocation = definePlayer.getPlayerTeam().getNextSpawn();
-            // Config is loaded before we have the world ready, so we must set world
-            teleportLocation.setWorld(getGameWorld().getBukkitWorld());
+        Location teleportLocation = definePlayer.getPlayerTeam().getNextSpawn();
+        // Config is loaded before we have the world ready, so we must set world
+        teleportLocation.setWorld(getGameWorld().getBukkitWorld());
 
-            PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
-                if (result) {
-                    if (canMove == false) {
-                        definePlayer.setFreeze(true);
-                    }
-                } else {
-                    bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
-                    Matchmaking mm = new Matchmaking();
-                    mm.addPlayer(uuid, "lobby");
+        PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
+            if (result) {
+                if (canMove == false) {
+                    definePlayer.setFreeze(true);
                 }
-            });
+            } else {
+                bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
+                Matchmaking mm = new Matchmaking();
+                mm.addPlayerToCentralQueue(uuid, "lobby");
+            }
+        });
         //}
     }
 
@@ -441,7 +439,7 @@ public class Game {
     }
 
     public void attemptStart() {
-        Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is "  + minPlayers + " " + !isGameStarting + " " + canGameStart);
+        Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is " + minPlayers + " " + !isGameStarting + " " + canGameStart);
         if (uuidParticipating.size() >= minPlayers && !isGameStarting && canGameStart) {
             startGameCountdown();
         }
@@ -709,5 +707,29 @@ public class Game {
 
     public int getGameEndCountdown() {
         return gameEndCountdown;
+    }
+
+    public boolean isAllowPlayerDoubleJump() {
+        return allowPlayerDoubleJump;
+    }
+
+    public void setAllowPlayerDoubleJump(boolean allowPlayerDoubleJump) {
+        this.allowPlayerDoubleJump = allowPlayerDoubleJump;
+    }
+
+    public Location getJoinServerLocation() {
+        return joinServerLocation;
+    }
+
+    public void setJoinServerLocation(Location joinServerLocation) {
+        this.joinServerLocation = joinServerLocation;
+    }
+
+    public boolean isAllowGoldenLaunchpads() {
+        return allowGoldenLaunchpads;
+    }
+
+    public void setAllowGoldenLaunchpads(boolean allowGoldenLaunchpads) {
+        this.allowGoldenLaunchpads = allowGoldenLaunchpads;
     }
 }

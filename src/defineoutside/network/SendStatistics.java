@@ -1,5 +1,7 @@
 package defineoutside.network;
 
+import defineoutside.creator.Game;
+import defineoutside.main.GameManager;
 import defineoutside.main.MainAPI;
 import org.bukkit.Bukkit;
 
@@ -8,6 +10,9 @@ import java.io.ObjectOutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.util.HashMap;
+import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 
 public class SendStatistics {
@@ -19,6 +24,8 @@ public class SendStatistics {
                 while (true) {
                     try {
                         CreateConnectionToMainframe createConnectionToMainframe = new CreateConnectionToMainframe();
+
+                        GameManager gm = new GameManager();
 
                         NetworkInfo networkInfo = createConnectionToMainframe.connectToMainframe("192.168.1.196", 27469, MainAPI.getInternalServerIdentifier());
 
@@ -34,9 +41,18 @@ public class SendStatistics {
                             usedMemory = ((com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getFreePhysicalMemorySize() / 1000000;
                             maxMemory = ((com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalPhysicalMemorySize() / 1000000;
 
+                            HashMap<UUID, List<UUID>> playersAndGames = new HashMap<>();
+                            HashMap<UUID, String> gamesAndGametypes = new HashMap<>();
+
+                            for (UUID gameID : gm.getGamesHashMap().keySet()) {
+                                Game game = gm.getGamesHashMap().get(gameID);
+                                playersAndGames.put(gameID, game.getUuidParticipating());
+                                gamesAndGametypes.put(gameID, game.getGameType());
+                            }
+
                             DataStatistics dataStatistics = new DataStatistics(sparkCPU.CpuMonitor.processLoad10SecAvg() * 100,
                                     sparkCPU.CpuMonitor.systemLoad10SecAvg() * 100, heapUsage.getUsed() / 1000000, heapUsage.getMax() / 1000000,
-                                    usedMemory, maxMemory);
+                                    maxMemory - usedMemory, maxMemory, playersAndGames, gamesAndGametypes);
 
                             objectOutputStream.writeObject(dataStatistics);
 

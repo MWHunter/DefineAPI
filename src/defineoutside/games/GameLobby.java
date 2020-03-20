@@ -10,14 +10,12 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.UUID;
 import java.util.logging.Level;
 
 public class GameLobby extends Game {
-    private String lobbyForGametype = "any";
+    private String lobbyForGametype = "";
 
     @Override
     public void createGameWorldAndRegisterGame() {
@@ -48,13 +46,34 @@ public class GameLobby extends Game {
 
     @Override
     public void start() {
-        GameManager gm = new GameManager();
+        if (getUuidParticipating().size() < GameManager.getMinPlayers(getLobbyForGametype())) {
+            GameManager gm = new GameManager();
 
-        Game game;
+            Game game;
 
-        game = gm.createLocalGame(getLobbyForGametype());
+            game = gm.createLocalGame(getLobbyForGametype());
 
-        gm.transferPlayers(getUuidParticipating(), game);
+            //Bukkit.broadcastMessage("The gamelobby is for gametype and is about to start " + getLobbyForGametype());
+
+            if (game != null) {
+                gm.transferPlayers(getUuidParticipating(), game);
+
+                setCanGameStart(true);
+                setGameStarting(false);
+                setLobbyForGametype("");
+            } else {
+                Bukkit.broadcastMessage(ChatColor.RED + "Server start failed!  Unknown gamemode: " + getLobbyForGametype());
+                setCanGameStart(false);
+                setGameStarting(false);
+                setLobbyForGametype("");
+
+                attemptStart();
+            }
+        } else {
+            messageGamePlayers(ChatColor.RED + "Unable to start game because a player left before it could begin!");
+            setCanGameStart(true);
+            setGameStarting(false);
+        }
     }
 
     @Override
@@ -77,8 +96,14 @@ public class GameLobby extends Game {
 
     public void setLobbyForGametype(String lobbyForGametype) {
         GameManager gm = new GameManager();
-        setMinPlayers(gm.getMinPlayers(lobbyForGametype));
         this.lobbyForGametype = lobbyForGametype;
+    }
+
+    public void attemptStart() {
+        //Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is " + minPlayers + " " + !isGameStarting + " " + canGameStart);
+        if (uuidParticipating.size() >= GameManager.getMinPlayers(getLobbyForGametype()) && !getGameStarting() && getCanGameStart()) {
+            startGameCountdown();
+        }
     }
 
     @Override
@@ -117,6 +142,15 @@ public class GameLobby extends Game {
 
         if (canMove == false) {
             definePlayer.setFreeze(true);
+        }
+    }
+
+    @Override
+    public void playerLeave(Player player) {
+        playerLeave(player.getUniqueId());
+
+        if (getUuidParticipating().size() < GameManager.getMinPlayers(getLobbyForGametype())) {
+
         }
     }
 }

@@ -27,3 +27,7 @@ commands:
     description: Usage - /Joinqueue Bedwars
   setgametype:
     description: Types are lobby, gamelobby, and bedwars
+  setgamemode:
+    description: Finds a gamelobby and sets the gamemode
+  getgamemode:
+    description: What gamemode is this?

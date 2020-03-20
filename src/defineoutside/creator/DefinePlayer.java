@@ -2,18 +2,20 @@ package defineoutside.creator;
 
 import defineoutside.main.PlayerManager;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scoreboard.*;
 
 import java.util.UUID;
 
 public class DefinePlayer {
 
-    private Team playerTeam;
+    private DefineTeam playerDefineTeam;
     private String inGameType = "lobby";
     private String kit = "empty";
 
@@ -67,7 +69,7 @@ public class DefinePlayer {
 
     public void createPlayer(UUID uuid) {
         this.playerUUID = uuid;
-        this.playerTeam = new Team();
+        this.playerDefineTeam = new DefineTeam();
         PlayerManager pm = new PlayerManager();
         pm.registerPlayer(this);
     }
@@ -95,6 +97,26 @@ public class DefinePlayer {
         return false;
     }
 
+    public static void setScoreBoard(Scoreboard scoreBoard) {
+        Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective obj = board.registerNewObjective("ServerName", "dummy", "Test Server");
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        Score onlineName = obj.getScore(ChatColor.GRAY + "» Online");
+        onlineName.setScore(15);
+
+        Team onlineCounter = board.registerNewTeam("onlineCounter");
+        onlineCounter.addEntry(ChatColor.BLACK + "" + ChatColor.WHITE);
+
+        if (Bukkit.getOnlinePlayers().size() == 0) {
+            onlineCounter.setPrefix(ChatColor.DARK_RED + "0" + ChatColor.RED + "/" + ChatColor.DARK_RED + Bukkit.getMaxPlayers());
+        } else {
+            onlineCounter.setPrefix("" + ChatColor.DARK_RED + Bukkit.getOnlinePlayers().size() + ChatColor.RED + "/" + ChatColor.DARK_RED + Bukkit.getMaxPlayers());
+        }
+
+        obj.getScore(ChatColor.BLACK + "" + ChatColor.WHITE).setScore(14);
+    }
+
     // All getters and setters below here
     public UUID getPlayerUUID() {
         return playerUUID;
@@ -109,13 +131,13 @@ public class DefinePlayer {
     }
 
     // Assume the player is alone without a team
-    public Team getPlayerTeam() {
-        return playerTeam;
+    public DefineTeam getPlayerDefineTeam() {
+        return playerDefineTeam;
     }
 
-    public void setPlayerTeam(Team playerTeam) {
-        playerTeam.addPlayer(playerUUID);
-        this.playerTeam = playerTeam;
+    public void setPlayerDefineTeam(DefineTeam playerDefineTeam) {
+        playerDefineTeam.addPlayer(playerUUID);
+        this.playerDefineTeam = playerDefineTeam;
     }
 
 

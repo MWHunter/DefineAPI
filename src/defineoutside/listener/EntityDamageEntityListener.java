@@ -1,9 +1,8 @@
 package defineoutside.listener;
 
-import defineoutside.creator.Team;
+import defineoutside.creator.DefineTeam;
 import defineoutside.main.GameManager;
 import defineoutside.main.PlayerManager;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,11 +18,11 @@ public class EntityDamageEntityListener implements Listener {
         PlayerManager pm = new PlayerManager();
 
         if (event.getDamager() instanceof HumanEntity && event.getEntity() instanceof HumanEntity) {
-            Team attackerTeam = pm.getDefinePlayer((Player)event.getDamager()).getPlayerTeam();
-            Team victimTeam = pm.getDefinePlayer((Player)event.getEntity()).getPlayerTeam();
+            DefineTeam attackerDefineTeam = pm.getDefinePlayer((Player)event.getDamager()).getPlayerDefineTeam();
+            DefineTeam victimDefineTeam = pm.getDefinePlayer((Player)event.getEntity()).getPlayerDefineTeam();
 
-            if (attackerTeam.equals(victimTeam)) {
-                event.setCancelled(!pm.getDefinePlayer((Player) event.getDamager()).getPlayerTeam().allowTeamDamage);
+            if (attackerDefineTeam.equals(victimDefineTeam)) {
+                event.setCancelled(!pm.getDefinePlayer((Player) event.getDamager()).getPlayerDefineTeam().allowTeamDamage);
             }
 
             else if (event.getDamager() instanceof Player && event.getEntity() instanceof Player) {

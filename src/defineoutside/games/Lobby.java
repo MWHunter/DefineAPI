@@ -12,6 +12,10 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
+import org.bukkit.scoreboard.Scoreboard;
 
 import java.util.UUID;
 import java.util.logging.Level;
@@ -21,12 +25,15 @@ public class Lobby extends Game {
 
     private boolean isStarting = false;
 
+
     @Override
     public void createGameWorldAndRegisterGame() {
         ConfigManager cm = new ConfigManager();
 
         // Set game type before so it loads the right configs
         setGameType("lobby");
+        // Otherwise this is null, and that causes hours of debugging!
+        setGameUUID(UUID.randomUUID());
 
         DefineWorld dwWorld = new DefineWorld();
         dwWorld.createArena("world", null);
@@ -39,7 +46,6 @@ public class Lobby extends Game {
         setAlwaysAllowPlayersJoin(true);
         setAllowPlayerDamage(false);
         setAllowPlayerShootProjectile(false);
-        setMinPlayers(0);
         setMaxPlayers(99999);
 
         GameManager gm = new GameManager();
@@ -85,10 +91,58 @@ public class Lobby extends Game {
 
         uuidParticipating.add(player);
 
-        dp.setPlayerTeam(getBestTeam());
+        dp.setPlayerDefineTeam(getBestTeam());
         dp.setKit(getSpawnKitName());
 
         playerLoad(player);
+
+        setScoreBoard(Bukkit.getPlayer(player));
+    }
+
+    public static void setScoreBoard(Player player) {
+        Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
+
+        // Registers title of scoreboard
+        Objective obj = board.registerNewObjective("ServerName", "ServerName", ChatColor.AQUA + "AbyssMC");
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        //Score blankTop = obj.getScore(ChatColor.BOLD + "");
+        //blankTop.setScore(12);
+
+        Score rank = obj.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Rank"); // Gets the score of a fake player
+        rank.setScore(9);
+
+        Score rankValue = obj.getScore(ChatColor.WHITE + "Player");
+        rankValue.setScore(8);
+
+        Score blankAqua = obj.getScore(ChatColor.AQUA + "");
+        blankAqua.setScore(7);
+
+        Score onlineName = obj.getScore(ChatColor.AQUA + "" + ChatColor.BOLD + "Online");
+        onlineName.setScore(6);
+
+        Score onlineScore = obj.getScore( ChatColor.WHITE + "" + MainAPI.globalPlayers);
+        onlineScore.setScore(5);
+
+        Score blankGreen = obj.getScore(ChatColor.GREEN + "");
+        blankGreen.setScore(4);
+
+        Score rubies = obj.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Rubies");
+        rubies.setScore(3);
+
+        Score rubiesValue = obj.getScore(ChatColor.WHITE + "0");
+        rubiesValue.setScore(2);
+
+        //Score blankRed = obj.getScore(ChatColor.RED + "");
+        //blankRed.setScore(3);
+
+        Score divider = obj.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "-------------");
+        divider.setScore(1);
+
+        Score serverName = obj.getScore(ChatColor.GREEN + "play.abyssmc.org");
+        serverName.setScore(0);
+
+        player.setScoreboard(board);
     }
 
     @Override

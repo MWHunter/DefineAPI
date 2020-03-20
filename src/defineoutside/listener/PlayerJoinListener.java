@@ -28,7 +28,7 @@ public class PlayerJoinListener implements Listener {
         if (MainAPI.lobbyType.equalsIgnoreCase("lobby")) {
             mm.addPlayer(event.getPlayer().getUniqueId(), "lobby");
         } else {
-            mm.addPlayer(event.getPlayer().getUniqueId(), "gamelobby: any");
+            mm.addPlayer(event.getPlayer().getUniqueId(), "gamelobby");
         }
     }
 }

@@ -1,5 +1,6 @@
 package defineoutside.creator;
 
+import defineoutside.games.GameLobby;
 import defineoutside.main.*;
 import io.papermc.lib.PaperLib;
 import org.bukkit.*;
@@ -9,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scoreboard.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +22,6 @@ import java.util.logging.Level;
 
 public class Game {
     // Static abuse here due to inheriting classes having issues with variables changing on them
-    private int minPlayers = 2;
     private int maxPlayers = 999;
     private int teams = 2;
     private int gameCountdown = 10;
@@ -91,7 +92,7 @@ public class Game {
     public ArrayList<UUID> uuidParticipating = new ArrayList<UUID>();
     public ArrayList<UUID> uuidSpectating = new ArrayList<UUID>();
 
-    public ArrayList<Team> uuidTeams = new ArrayList<>();
+    public ArrayList<DefineTeam> uuidDefineTeams = new ArrayList<>();
 
     public ItemStack[] spawnItemList = new ItemStack[41];
 
@@ -112,29 +113,29 @@ public class Game {
         }
 
         for (int i = 0; i < teams; i++) {
-            Team team = new Team();
+            DefineTeam defineTeam = new DefineTeam();
             for (String teamName : teamNames) {
                 boolean isUniqueName = true;
 
-                for (Team teams : uuidTeams) {
+                for (DefineTeam teams : uuidDefineTeams) {
                     if (teams.getName().equals(teamName)) {
                         isUniqueName = false;
                     }
                 }
 
                 if (isUniqueName) {
-                    team.setName(teamName);
+                    defineTeam.setName(teamName);
 
-                    if (team != null) {
-                        team.setWoolType(teamWools[ArrayUtils.indexOf(teamNames, teamName)]);
-                        team.setChatColor(teamColors[ArrayUtils.indexOf(teamNames, teamName)]);
+                    if (defineTeam != null) {
+                        defineTeam.setWoolType(teamWools[ArrayUtils.indexOf(teamNames, teamName)]);
+                        defineTeam.setChatColor(teamColors[ArrayUtils.indexOf(teamNames, teamName)]);
                     }
 
                     break;
                 }
             }
 
-            uuidTeams.add(team);
+            uuidDefineTeams.add(defineTeam);
         }
 
         ConfigManager cm = new ConfigManager();
@@ -147,9 +148,9 @@ public class Game {
         List<List<Location>> listOfListOfSpawns = cm.getListOfSpawns(getWorldFolder().getName());
 
         for (int i = 0; i < teams; i++) {
-            Team itTeam = uuidTeams.get(i);
+            DefineTeam itDefineTeam = uuidDefineTeams.get(i);
 
-            itTeam.setSpawns(listOfListOfSpawns.get(i % listOfListOfSpawns.size()));
+            itDefineTeam.setSpawns(listOfListOfSpawns.get(i % listOfListOfSpawns.size()));
         }
 
         spawnItemList = cm.getRandomKit(gameType);
@@ -235,15 +236,15 @@ public class Game {
 
         // avoid null pointers
         if (getUuidParticipating().size() > 0) {
-            Team playerTeam = null;
+            DefineTeam playerDefineTeam = null;
 
             // Logic for seeing if there are still multiple teams
             for (UUID uuid : getUuidParticipating()) {
                 DefinePlayer dp = pm.getDefinePlayer(uuid);
                 if (dp.isAlive() || dp.playerDeathCanRespawn()) {
-                    if (playerTeam == null) {
-                        playerTeam = dp.getPlayerTeam();
-                    } else if (!pm.getDefinePlayer(uuid).getPlayerTeam().equals(playerTeam)) {
+                    if (playerDefineTeam == null) {
+                        playerDefineTeam = dp.getPlayerDefineTeam();
+                    } else if (!pm.getDefinePlayer(uuid).getPlayerDefineTeam().equals(playerDefineTeam)) {
                         return false;
                     }
                 }
@@ -284,7 +285,17 @@ public class Game {
         // This needs to be called after removing the game from the list, otherwise the player will just join back into this game
         // This should prioritize games over lobbies
         for (UUID playerUUID : this.getUuidParticipating()) {
-            mm.addPlayer(playerUUID, "lobby");
+            //mm.addPlayer(playerUUID, "gamelobby");
+
+            for (Game game : gm.getGamesHashMap().values()) {
+                if (game instanceof GameLobby) {
+                    ((GameLobby)game).setLobbyForGametype(getGameType());
+                    game.setCanGameStart(true);
+                    gm.transferPlayers(getUuidParticipating(), game);
+
+                    break;
+                }
+            }
 
             // TODO: Use configs to get this location, make sure to get the location out of the loop for efficiency
             // Async because players won't notice an extra second being spent for this
@@ -355,7 +366,7 @@ public class Game {
         ItemStack[] giveItems;
         if (kitSelector) {
             // TODO: Make this by team
-            giveItems = cm.getRandomKitSelector(getGameType(), getWorldFolder().getName(), ArrayUtils.indexOf(teamNames, definePlayer.getPlayerTeam().getName()));
+            giveItems = cm.getRandomKitSelector(getGameType(), getWorldFolder().getName(), ArrayUtils.indexOf(teamNames, definePlayer.getPlayerDefineTeam().getName()));
         } else {
             giveItems = cm.getKit(definePlayer.getKit());
         }
@@ -365,7 +376,7 @@ public class Game {
         // Check if the player has already been teleported to a valid spawn position
         //if (!definePlayer.getPlayerTeam().containsSpawn((int) bukkitPlayer.getLocation().getX(), (int) bukkitPlayer.getLocation().getZ()) &&
         //        !bukkitPlayer.getGameMode().equals(GameMode.SPECTATOR) && !bukkitPlayer.getLocation().getWorld().getName().equals(getGameWorld().getBukkitWorld().getName())) {
-        Location teleportLocation = definePlayer.getPlayerTeam().getNextSpawn();
+        Location teleportLocation = definePlayer.getPlayerDefineTeam().getNextSpawn();
         // Config is loaded before we have the world ready, so we must set world
         teleportLocation.setWorld(getGameWorld().getBukkitWorld());
 
@@ -397,6 +408,7 @@ public class Game {
 
     // TODO: Add a check if we still have enough players
     public void playerLeave(Player player) {
+
         playerLeave(player.getUniqueId());
     }
 
@@ -408,18 +420,18 @@ public class Game {
         String joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has joined the game";
 
         DefinePlayer dp = pm.getDefinePlayer(player);
-        dp.setPlayerTeam(getBestTeam());
+        dp.setPlayerDefineTeam(getBestTeam());
         dp.setKit(spawnKitName);
 
-        Team joinerTeam = pm.getDefinePlayer(player).getPlayerTeam();
+        DefineTeam joinerDefineTeam = pm.getDefinePlayer(player).getPlayerDefineTeam();
 
-        if (pm.getDefinePlayer(player).getPlayerTeam() != null) {
-            joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has joined the " + joinerTeam.getChatColor() + joinerTeam.getName() + ChatColor.WHITE
+        if (joinerDefineTeam != null) {
+            joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has joined the " + joinerDefineTeam.getChatColor() + joinerDefineTeam.getName() + ChatColor.WHITE
                     + " team";
         }
 
         messageGamePlayers(joinMessage);
-
+        setScoreBoard(Bukkit.getPlayer(player));
         playerLoad(player);
 
         attemptStart();
@@ -433,14 +445,14 @@ public class Game {
         }
 
         PlayerManager pm = new PlayerManager();
-        pm.getDefinePlayer(player).getPlayerTeam().removePlayer(player);
+        pm.getDefinePlayer(player).getPlayerDefineTeam().removePlayer(player);
 
         checkEndByEliminations();
     }
 
     public void attemptStart() {
-        Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is " + minPlayers + " " + !isGameStarting + " " + canGameStart);
-        if (uuidParticipating.size() >= minPlayers && !isGameStarting && canGameStart) {
+        //Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is " + minPlayers + " " + !isGameStarting + " " + canGameStart);
+        if (uuidParticipating.size() >= GameManager.getMinPlayers(gameType) && !isGameStarting && canGameStart) {
             startGameCountdown();
         }
     }
@@ -478,19 +490,19 @@ public class Game {
         }
     }
 
-    public Team getBestTeam() {
+    public DefineTeam getBestTeam() {
         int smallestTeam = Integer.MAX_VALUE;
         // As a backup, shouldn't be needed
-        Team bestTeam = new Team();
+        DefineTeam bestDefineTeam = new DefineTeam();
 
-        for (Team team : uuidTeams) {
-            if (team.getSizeOfTeam() < smallestTeam) {
-                smallestTeam = team.getSizeOfTeam();
-                bestTeam = team;
+        for (DefineTeam defineTeam : uuidDefineTeams) {
+            if (defineTeam.getSizeOfTeam() < smallestTeam) {
+                smallestTeam = defineTeam.getSizeOfTeam();
+                bestDefineTeam = defineTeam;
             }
         }
 
-        return bestTeam;
+        return bestDefineTeam;
     }
 
     public void messageGamePlayers(String string) {
@@ -499,14 +511,50 @@ public class Game {
         }
     }
 
-    // All getters and setters, nothing to see here
-    public int getMinPlayers() {
-        return minPlayers;
+    public static void setScoreBoard(Player player) {
+        Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
+
+        // Registers title of scoreboard
+        Objective obj = board.registerNewObjective("ServerName", "ServerName", ChatColor.AQUA + "AbyssMC");
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        Score onlineName = obj.getScore(ChatColor.AQUA + "" + ChatColor.BOLD + ChatColor.BOLD + "Online"); // Gets the score of a fake player
+        onlineName.setScore(10);
+
+        Score onlineScore = obj.getScore( ChatColor.WHITE + "" + MainAPI.globalPlayers);
+        onlineScore.setScore(9);
+
+        Score blankAqua = obj.getScore(ChatColor.AQUA + "");
+        blankAqua.setScore(8);
+
+        Score rank = obj.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Supporter Rank");
+        rank.setScore(7);
+
+        Score rankValue = obj.getScore(ChatColor.WHITE + "Player");
+        rankValue.setScore(6);
+
+        Score blankGreen = obj.getScore(ChatColor.GREEN + "");
+        blankGreen.setScore(5);
+
+        Score rubies = obj.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Rubies");
+        rubies.setScore(4);
+
+        Score rubiesValue = obj.getScore(ChatColor.RED + "0");
+        rubiesValue.setScore(3);
+
+        Score blankRed = obj.getScore(ChatColor.RED + "");
+        blankRed.setScore(2);
+
+        Score divider = obj.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "------------------");
+        divider.setScore(1);
+
+        Score serverName = obj.getScore(ChatColor.GREEN + "play.abyssmc.org");
+        serverName.setScore(0);
+
+        player.setScoreboard(board);
     }
 
-    public void setMinPlayers(int minPlayers) {
-        this.minPlayers = minPlayers;
-    }
+    // All getters and setters, nothing to see here
 
     public int getMaxPlayers() {
         return maxPlayers;
@@ -731,5 +779,21 @@ public class Game {
 
     public void setAllowGoldenLaunchpads(boolean allowGoldenLaunchpads) {
         this.allowGoldenLaunchpads = allowGoldenLaunchpads;
+    }
+
+    public void setGameUUID(UUID gameUUID) {
+        this.gameUUID = gameUUID;
+    }
+
+    public void setGameStarting(boolean gameStarting) {
+        isGameStarting = gameStarting;
+    }
+
+    public boolean getGameStarting() {
+        return isGameStarting;
+    }
+
+    public boolean getCanGameStart() {
+        return canGameStart;
     }
 }

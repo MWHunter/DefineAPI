@@ -137,17 +137,17 @@ public class GameManager {
                 }.runTaskTimer(MainAPI.getPlugin(), 0L, 5L);
 
                 return game;
-            case "defuse":
-                game = new Defuse();
+            case "bedwars":
+                game = new Bedwars();
 
-                game.setSpawnKitName(cm.getRandomKitSelectorName("defuse"));
+                game.setSpawnKitName(cm.getRandomKitSelectorName(gameType));
                 if (game.getSpawnKitName() == null) {
-                    game.setSpawnKitName(cm.getRandomKitName("defuse"));
+                    game.setSpawnKitName(cm.getRandomKitName(gameType));
                 } else {
                     game.setSpawnItemList(cm.getKit(game.getSpawnKitName()));
                 }
 
-                game.setWorldFolder(cm.getRandomMap("defuse"));
+                game.setWorldFolder(cm.getRandomMap("bedwars"));
 
                 // Make it get the world spawn points from config, the kit config, and then register the game with gamemanager (this class!)
                 game.createGameWorldAndRegisterGame();
@@ -178,7 +178,7 @@ public class GameManager {
         return null;
     }
 
-    public int getMinPlayers(String gametype) {
+    public static int getMinPlayers(String gametype) {
         switch (gametype) {
             case "duel":
                 return 2;
@@ -216,7 +216,7 @@ public class GameManager {
         return getGameFromBukkitWorld.get(world);
     }
 
-    public HashMap<UUID, Game> getGamesHashMap() {
+    static public HashMap<UUID, Game> getGamesHashMap() {
         return completeGamesMap;
     }
 
@@ -253,7 +253,7 @@ public class GameManager {
                     for (int x = 0; x < playersToTransfer; x++) {
                         // TODO: Less of a hack than current
                         UUID playerUUID = uuidPlayers.get(0);
-                        Bukkit.broadcastMessage(ChatColor.RED + "" + playerUUID + " is being transfererered");
+                        //Bukkit.broadcastMessage(ChatColor.RED + "" + playerUUID + " is being transfererered");
 
                         // Unlock the player to transfer him
                         PlayerManager pm = new PlayerManager();

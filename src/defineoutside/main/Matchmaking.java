@@ -7,10 +7,7 @@ import defineoutside.network.QueueData;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class Matchmaking {
     private static HashMap<UUID, String> playersLookingForGameType = new HashMap<>();
@@ -48,9 +45,38 @@ public class Matchmaking {
         PlayerManager pm = new PlayerManager();
         GameManager gm = new GameManager();
 
+        for (UUID playerUUID : playersLookingForGameType.keySet()) {
+            String firstPlayerGame = playersLookingForGameType.get(playerUUID);
+            List<UUID> playersInSameQueue = new ArrayList<>();
+
+            if (firstPlayerGame != null) {
+                for (UUID playersAlsoInQueue : playersLookingForGameType.keySet()) {
+                    String otherPlayer = playersLookingForGameType.get(playersAlsoInQueue);
+                    if (otherPlayer.equals(firstPlayerGame) && !pm.getDefinePlayer(playerUUID).isLockInGame()) {
+                        playersInSameQueue.add(playersAlsoInQueue);
+                    }
+                }
+            }
+
+            if (playersInSameQueue.size() > 0) {
+                for (Game game : gm.getGamesHashMap().values()) {
+                    if (game.getGameType().equals(firstPlayerGame)) {
+
+                        // Remove people from the queue
+                        for (UUID uuid : playersInSameQueue) {
+                            removePlayer(uuid);
+                        }
+
+                        gm.transferPlayers(playersInSameQueue, game);
+                        break;
+                    }
+                }
+            }
+        }
+
         // TODO: Not hard coded player minimum
         // TODO: A bit more optimization
-        for (UUID playerUUID : playersLookingForGameType.keySet()) {
+        /*for (UUID playerUUID : playersLookingForGameType.keySet()) {
             List<UUID> playersFoundGame = new ArrayList<>();
             String gametype = playersLookingForGameType.get(playerUUID);
 
@@ -72,7 +98,8 @@ public class Matchmaking {
 
                     // This is meant for connecting to game lobbies before connecting to something else
                     if (gametype.contains("gamelobby")) {
-                        String subtype = gametype.substring(gametype.indexOf(":") + 2);
+                        // Legacy code pre network
+                        //String subtype = gametype.substring(gametype.indexOf(":") + 2);
 
                         for (UUID game : gm.getGamesHashMap().keySet()) {
                             // If looped games equals searching game
@@ -82,14 +109,16 @@ public class Matchmaking {
 
                                 GameLobby gl = (GameLobby) gm.getGamesHashMap().get(game);
                                 // Any means that it is a new lobby
-                                if (gl.getLobbyForGametype().equalsIgnoreCase(subtype)) {
-                                    gameFound = gm.getGamesHashMap().get(game);
-                                    break;
-                                }
+                                //if (gl.getLobbyForGametype().equalsIgnoreCase(subtype)) {
+                                //    gameFound = gm.getGamesHashMap().get(game);
+                                //    break;
+                                //}
 
-                                if (gl.getLobbyForGametype().equals("any")) {
+                                // TODO: THIS IS DEBUG CHANGE THIS
+                                if (gl.getLobbyForGametype().equals("")) {
                                     gameFound = gm.getGamesHashMap().get(game);
-                                    gl.setLobbyForGametype(gametype.substring(gametype.indexOf(":") + 2));
+                                    // Legacy code pre network
+                                    //gl.setLobbyForGametype(gametype.substring(gametype.indexOf(":") + 2));
                                     break;
                                 }
                             }
@@ -117,7 +146,8 @@ public class Matchmaking {
                         // Just throw players in a new gamelobby
                         if (gameFound == null) {
                             gameFound = gm.createLocalGame("gamelobby");
-                            ((GameLobby) gameFound).setLobbyForGametype(gametype.substring(gametype.indexOf(":") + 2));
+                            // Legacy code pre network
+                            //((GameLobby) gameFound).setLobbyForGametype(gametype.substring(gametype.indexOf(":") + 2));
                         }
 
                         // And enforce the player limit
@@ -136,7 +166,7 @@ public class Matchmaking {
                     }
                 }
             }
-        }
+        }*/
     }
 
     public void removePlayer(UUID uuid) {

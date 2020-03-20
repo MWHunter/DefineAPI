@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class CreateConnectionToMainframe {
-    NetworkInfo connectToMainframe(String host, Integer port, String name) throws IOException, InterruptedException {
+    NetworkInfo connectToMainframe(String host, Integer port, String name) throws IOException {
 
         Socket s = new Socket(host, port);
         DataInputStream dis = new DataInputStream(s.getInputStream());

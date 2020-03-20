@@ -1,14 +1,18 @@
 package defineoutside.network;
 
+import defineoutside.main.MainAPI;
 import org.bukkit.Bukkit;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
 public class PlayerQueue {
+    Thread connectionToMain;
+
     static NetworkInfo networkInfo;
 
     CreateConnectionToMainframe createConnectionToMainframe = new CreateConnectionToMainframe();
@@ -20,11 +24,12 @@ public class PlayerQueue {
             while (true) {
                 ObjectOutputStream objectOutputStream = null;
                 try {
-                    networkInfo = createConnectionToMainframe.connectToMainframe(host, 27469, "MainBungeeOutputAddToQueue");
-                    Bukkit.getLogger().log(Level.INFO, "Connected to the central server");
+                    networkInfo = createConnectionToMainframe.connectToMainframe(host, 27469, MainAPI.getInternalServerIdentifier() + "#Output");
+                    MainAPI.getPlugin().getLogger().log(Level.INFO, "Connected to the central server");
 
                     objectOutputStream = new ObjectOutputStream(networkInfo.getDataOutputStream());
-                } catch (IOException | InterruptedException e) {
+                } catch (IOException e) {
+                    e.printStackTrace();
                     // it restarts later
                 }
 
@@ -36,12 +41,14 @@ public class PlayerQueue {
                                 System.out.println("sent something!");
                                 objectOutputStream.writeObject(queueData);
                             }
+
+                            objectOutputStream.reset();
                             queueData.clear();
                         }
                         Thread.sleep(50);
 
                     } catch (Exception e) {
-                        Bukkit.getLogger().log(Level.WARNING, "Disconnected from the central server");
+                        MainAPI.getPlugin().getLogger().log(Level.WARNING, "Disconnected from the central server");
 
                         // Loop again in 10 seconds!
                         try {

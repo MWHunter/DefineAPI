@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class Team {
+public class DefineTeam {
     public ArrayList<UUID> uuidInTeam = new ArrayList<>();
     public boolean allowTeamDamage = false;
     public String name = UUID.randomUUID().toString();

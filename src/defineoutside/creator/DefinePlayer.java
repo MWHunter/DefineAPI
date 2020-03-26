@@ -2,15 +2,18 @@ package defineoutside.creator;
 
 import defineoutside.main.PlayerManager;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.*;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Score;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.util.Vector;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 public class DefinePlayer {
@@ -42,13 +45,24 @@ public class DefinePlayer {
         return isFrozen;
     }
 
+    HashMap<String, String> internalToDisplayName = new HashMap<>();
+
     // TODO: Prevent damage while frozen
     public void setFreeze(Boolean freeze) {
         if (freeze) {
             isFrozen = true;
+
+            // Get the pig pointing towards 0,0
+            Location playerLocation = getBukkitPlayer().getLocation();
+
+            Vector pigDirection = new Vector();
+            pigDirection.setX(playerLocation.getX() * -1);
+            pigDirection.setY(0);
+            pigDirection.setZ(playerLocation.getZ() * -1);
+
             // Prevent players from moving
-            Entity pig = getBukkitPlayer().getLocation().getWorld().spawnEntity(getBukkitPlayer().getLocation(), EntityType.PIG);
-            ((LivingEntity) pig).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
+            Entity pig = getBukkitPlayer().getLocation().getWorld().spawnEntity(getBukkitPlayer().getLocation().setDirection(pigDirection), EntityType.PIG);
+            //((LivingEntity) pig).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
             pig.addPassenger(getBukkitPlayer());
             pig.setCustomName("player freeze");
             pig.setCustomNameVisible(false);
@@ -97,24 +111,44 @@ public class DefinePlayer {
         return false;
     }
 
-    public static void setScoreBoard(Scoreboard scoreBoard) {
+    public void addObjective(String objectiveName, String displayedName, Integer priority) {
+        Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
+        Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
+
+        Score onlineName = obj.getScore(displayedName); // Gets the score of a fake player
+        onlineName.setScore(priority);
+
+        internalToDisplayName.put(objectiveName, displayedName);
+    }
+
+    public void updateObjective(String objectiveName, String displayedName) {
+        Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
+        Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
+
+        Integer priority = obj.getScore(internalToDisplayName.get(objectiveName)).getScore();
+
+        playerScoreboard.resetScores(internalToDisplayName.get(objectiveName));
+
+        addObjective(objectiveName, displayedName, priority);
+    }
+
+    public void removeObjective(String objectiveName) {
+        Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
+        Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
+
+        obj.getScore(internalToDisplayName.get(objectiveName));
+    }
+
+    public void createScoreboard(String hiddenName, String name) {
         Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = board.registerNewObjective("ServerName", "dummy", "Test Server");
+        Objective obj = board.registerNewObjective(hiddenName, "dummy", name);
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        Score onlineName = obj.getScore(ChatColor.GRAY + "» Online");
-        onlineName.setScore(15);
+        getBukkitPlayer().setScoreboard(board);
+    }
 
-        Team onlineCounter = board.registerNewTeam("onlineCounter");
-        onlineCounter.addEntry(ChatColor.BLACK + "" + ChatColor.WHITE);
-
-        if (Bukkit.getOnlinePlayers().size() == 0) {
-            onlineCounter.setPrefix(ChatColor.DARK_RED + "0" + ChatColor.RED + "/" + ChatColor.DARK_RED + Bukkit.getMaxPlayers());
-        } else {
-            onlineCounter.setPrefix("" + ChatColor.DARK_RED + Bukkit.getOnlinePlayers().size() + ChatColor.RED + "/" + ChatColor.DARK_RED + Bukkit.getMaxPlayers());
-        }
-
-        obj.getScore(ChatColor.BLACK + "" + ChatColor.WHITE).setScore(14);
+    public String getScoreboardName() {
+        return getBukkitPlayer().getScoreboard().getObjective(DisplaySlot.SIDEBAR).getName();
     }
 
     // All getters and setters below here

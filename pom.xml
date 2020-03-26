@@ -79,7 +79,7 @@
         </dependency>
         <dependency>
             <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
+            <artifactId>spigot</artifactId>
             <version>1.15.1-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
@@ -92,6 +92,13 @@
             <groupId>net.ME1312.SubServers</groupId>
             <artifactId>SubServers.Client.Bukkit</artifactId>
             <version>20w08a</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bukkit</groupId>
+            <artifactId>bukkit</artifactId>
+            <version>1.15.2-R0.1-SNAPSHOT</version><!--change this value depending on the version or use LATEST-->
+            <type>jar</type>
+            <scope>provided</scope>
         </dependency>
         <!--<dependency>
             <groupId>net.citizensnpcs</groupId>

@@ -21,7 +21,7 @@ public class PlayerManager {
         return completePlayerMap.get(player.getUniqueId());
     }
 
-    public DefinePlayer getDefinePlayer(UUID playerUUID) {
+    public static DefinePlayer getDefinePlayer(UUID playerUUID) {
         return completePlayerMap.get(playerUUID);
     }
 

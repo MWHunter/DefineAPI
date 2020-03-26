@@ -1,10 +1,8 @@
 package defineoutside.network;
 
 import defineoutside.main.MainAPI;
-import org.bukkit.Bukkit;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +27,7 @@ public class PlayerQueue {
 
                     objectOutputStream = new ObjectOutputStream(networkInfo.getDataOutputStream());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                     // it restarts later
                 }
 

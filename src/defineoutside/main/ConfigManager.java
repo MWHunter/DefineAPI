@@ -155,8 +155,8 @@ public class ConfigManager {
         }
     }
 
-    public List<Location> getSpecialPositionsList(String map, String specialFunction) {
-        return listOfSpecial.get(map).get(specialFunction);
+    public static List<Location> getSpecialPositionsList(String map, String specialFunction) {
+        return new ArrayList<>(listOfSpecial.get(map).get(specialFunction));
     }
 
     public File getRandomMap(String gameType) {

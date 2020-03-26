@@ -6,14 +6,11 @@ import defineoutside.main.GameManager;
 import defineoutside.main.MainAPI;
 import org.bukkit.Bukkit;
 
-import java.io.DataOutputStream;
 import java.io.ObjectOutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -77,7 +74,7 @@ public class SendStatistics {
                     } catch (InterruptedException ex) {
                         ex.printStackTrace();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        //e.printStackTrace();
 
                         Bukkit.getLogger().log(Level.WARNING, "Statistics unable to connect to the game manager with host " + host + " and port 27469.  Restarting connection in 10 seconds!");
 

@@ -180,14 +180,8 @@ public class GameManager {
 
     public static int getMinPlayers(String gametype) {
         switch (gametype) {
-            case "duel":
+            case "bedwars":
                 return 2;
-            case "pit":
-                return 1;
-            case "defuse":
-                return 2;
-            case "gamelobby":
-                return 1;
         }
         return -1;
     }
@@ -212,7 +206,7 @@ public class GameManager {
         getGameFromBukkitWorld.remove(Bukkit.getWorld(uuid));
     }
 
-    public Game getGameFromWorld(World world) {
+    public static Game getGameFromWorld(World world) {
         return getGameFromBukkitWorld.get(world);
     }
 
@@ -232,7 +226,6 @@ public class GameManager {
     // Quickly transfer some active players from one game to another
     public void transferPlayers(List<UUID> uuidPlayers, Game toGame) {
 
-        GameManager gm = new GameManager();
         PlayerManager pm = new PlayerManager();
 
         for (UUID playerUUID : uuidPlayers) {
@@ -240,35 +233,33 @@ public class GameManager {
             pm.getDefinePlayer(playerUUID).setLockInGame(true);
         }
 
-        // Takes some time due to world preparation
         new BukkitRunnable() {
             public void run() {
-                int playersToTransfer = uuidPlayers.size();
-
+                // Takes some time due to world preparation
                 if (toGame.getGameWorld().isReady()) {
+                    // Since this is a reference back to the game we are transferring, we need to clone the list
+                    List<UUID> uuidPlayersClone = new ArrayList<>(uuidPlayers);
+
                     // Prevent the game from starting before all players are transferred
                     toGame.setCanGameStart(false);
 
-                    // Move ALL players
-                    for (int x = 0; x < playersToTransfer; x++) {
-                        // TODO: Less of a hack than current
-                        UUID playerUUID = uuidPlayers.get(0);
-                        //Bukkit.broadcastMessage(ChatColor.RED + "" + playerUUID + " is being transfererered");
+                    // Move ALL players (From cloned list)
+                    for (UUID playerUUID : uuidPlayersClone) {
 
                         // Unlock the player to transfer him
-                        PlayerManager pm = new PlayerManager();
-                        DefinePlayer dp = pm.getDefinePlayer(playerUUID);
+                        DefinePlayer dp = PlayerManager.getDefinePlayer(playerUUID);
                         dp.setLockInGame(false);
 
-                        // Remove players from every game
-                        for (Map.Entry<UUID, Game> game : gm.getGamesHashMap().entrySet()) {
-                            if (gm.getGamesHashMap().get(game.getKey()).getUuidParticipating().contains(playerUUID)) {
-                                gm.getGamesHashMap().get(game.getKey()).playerLeave(playerUUID);
+                        // Remove player from every game
+                        for (Map.Entry<UUID, Game> game : GameManager.getGamesHashMap().entrySet()) {
+                            if (GameManager.getGamesHashMap().get(game.getKey()).getUuidParticipating().contains(playerUUID)) {
+                                GameManager.getGamesHashMap().get(game.getKey()).playerLeave(playerUUID);
                             }
                         }
 
                         toGame.playerJoin(playerUUID);
                     }
+
                     // And then try to start it, letting it choose whether it wants to
                     toGame.setCanGameStart(true);
                     toGame.attemptStart();

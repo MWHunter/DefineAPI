@@ -42,7 +42,8 @@ public class RegisterServer {
                         Thread.sleep(60 * 1000);
 
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        MainAPI.getPlugin().getLogger().log(Level.WARNING, "Registration disconnected");
+                        //e.printStackTrace();
                     }
                 }
             }

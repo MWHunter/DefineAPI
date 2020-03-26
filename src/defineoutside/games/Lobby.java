@@ -12,10 +12,6 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Score;
-import org.bukkit.scoreboard.Scoreboard;
 
 import java.util.UUID;
 import java.util.logging.Level;
@@ -99,7 +95,7 @@ public class Lobby extends Game {
         setScoreBoard(Bukkit.getPlayer(player));
     }
 
-    public static void setScoreBoard(Player player) {
+    /*public static void setScoreBoard(Player player) {
         Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
 
         // Registers title of scoreboard
@@ -143,7 +139,7 @@ public class Lobby extends Game {
         serverName.setScore(0);
 
         player.setScoreboard(board);
-    }
+    }*/
 
     @Override
     public void playerLoad(UUID uuid) {
@@ -200,43 +196,6 @@ public class Lobby extends Game {
             definePlayer.setFreeze(true);
         }
     }
-
-    /*@Override
-    public void playerJoin(UUID player) {
-
-        try {
-            uuidParticipating.add(player);
-
-            Player bukkitPlayer = Bukkit.getPlayer(player);
-
-            PaperLib.teleportAsync(bukkitPlayer, new Location(Bukkit.getWorld("world"), 0, 70, 0));
-
-            bukkitPlayer.setGameMode(GameMode.SURVIVAL);
-            bukkitPlayer.setHealth(20);
-            bukkitPlayer.setFireTicks(0);
-            bukkitPlayer.getInventory().clear();
-            //PaperLib.teleportAsync(event.getPlayer(), new Location(Bukkit.getWorld("world"), 0, 70, 0));
-
-            PlayerManager pm = new PlayerManager();
-            pm.getDefinePlayer(player).setInGameType(getGameType());
-
-            for (int i = 0; i < 41; i++) {
-                bukkitPlayer.getInventory().setItem(i, spawnItemList[i]);
-            }
-
-            // TODO: Add option for queue.
-            /*Matchmaking mm = new Matchmaking();
-            new BukkitRunnable() {
-                public void run() {
-                    if (Bukkit.getOfflinePlayer(player).isOnline()) {
-                        mm.addPlayer(player, "testwars");
-                    }
-                }
-            }.runTaskLater(MainAPI.getPlugin(), 100L);
-        } catch (Exception e) {
-            playerLeave(player);
-        }
-    }*/
 
     @Override
     public void startGameCountdown() {

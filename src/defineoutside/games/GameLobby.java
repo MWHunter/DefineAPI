@@ -46,12 +46,13 @@ public class GameLobby extends Game {
 
     @Override
     public void start() {
-        if (getUuidParticipating().size() < GameManager.getMinPlayers(getLobbyForGametype())) {
+        if (uuidParticipating.size() >= GameManager.getMinPlayers(getLobbyForGametype())) {
             GameManager gm = new GameManager();
 
             Game game;
 
             game = gm.createLocalGame(getLobbyForGametype());
+            Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers("bedwars"));
 
             //Bukkit.broadcastMessage("The gamelobby is for gametype and is about to start " + getLobbyForGametype());
 
@@ -62,18 +63,29 @@ public class GameLobby extends Game {
                 setGameStarting(false);
                 setLobbyForGametype("");
             } else {
-                Bukkit.broadcastMessage(ChatColor.RED + "Server start failed!  Unknown gamemode: " + getLobbyForGametype());
+                Bukkit.broadcastMessage(ChatColor.RED + "Server start failed!  Unknown gamemode: \"" + getLobbyForGametype() + "\"  This shouldn't happen!  Tell DefineOutside!");
+                Bukkit.broadcastMessage(ChatColor.RED + "Defaulting to the bedwars gamemode and restarting countdown!");
                 setCanGameStart(false);
                 setGameStarting(false);
-                setLobbyForGametype("");
+                setLobbyForGametype("bedwars");
 
                 attemptStart();
             }
         } else {
-            messageGamePlayers(ChatColor.RED + "Unable to start game because a player left before it could begin!");
+            messageGamePlayers(ChatColor.RED + "Unable to start game because a player left before it could begin!  Will begin when more players join!");
             setCanGameStart(true);
             setGameStarting(false);
         }
+    }
+
+    @Override
+    public void playerLeave(UUID player) {
+        uuidParticipating.remove(player);
+
+        PlayerManager pm = new PlayerManager();
+        pm.getDefinePlayer(player).getPlayerDefineTeam().removePlayer(player);
+
+        checkEndByEliminations();
     }
 
     @Override
@@ -100,7 +112,7 @@ public class GameLobby extends Game {
     }
 
     public void attemptStart() {
-        //Bukkit.broadcastMessage(uuidParticipating.size() + " is current playercount min is " + minPlayers + " " + !isGameStarting + " " + canGameStart);
+        Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers(getGameType()));
         if (uuidParticipating.size() >= GameManager.getMinPlayers(getLobbyForGametype()) && !getGameStarting() && getCanGameStart()) {
             startGameCountdown();
         }

@@ -8,7 +8,10 @@ import defineoutside.creator.Game;
 import defineoutside.games.GameLobby;
 import defineoutside.games.Lobby;
 import defineoutside.listener.*;
-import defineoutside.network.*;
+import defineoutside.network.PlayerQueue;
+import defineoutside.network.RegisterServer;
+import defineoutside.network.SendStatistics;
+import defineoutside.network.receivePlayerTransferAndCommands;
 import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -26,9 +29,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.*;
-import java.net.InetAddress;
-import java.net.Socket;
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -113,6 +115,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
         Bukkit.getPluginManager().registerEvents(new EntityDamageEntityListener(), this);
         Bukkit.getPluginManager().registerEvents(new DoubleJumpListener(), this);
         Bukkit.getPluginManager().registerEvents(new WorldInitEvent(), this);
+        Bukkit.getPluginManager().registerEvents(new CraftingListener(), this);
 
         this.getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
         this.getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", this);
@@ -162,7 +165,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
         }, 0, 100);
 
         // Every 15 seconds return any open lobbies without players to be open
-        getServer().getScheduler().scheduleSyncDelayedTask(getPlugin(), () -> {
+        getServer().getScheduler().scheduleSyncRepeatingTask(getPlugin(), () -> {
             // Stop immediately changing the gamelobby back
             if (changedLobbyGamemode) {
                 changedLobbyGamemode = false;
@@ -177,7 +180,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
                 }
             }
 
-        }, 300);
+        }, 300, 300);
     }
 
     // Register the custom void generator
@@ -243,16 +246,6 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
                 sender.sendMessage(ChatColor.RED + "I'm sorry, Dave, but I cannot let you do that.");
             }
         }
-
-        // Somewhat hacky solution to set the UUID used for tracking this server, using bungeecord commands (Should be a reliable hack)
-        /*if (label.equalsIgnoreCase("setuuid")) {
-            if (!(sender instanceof Player)) {
-                getLogger().log(Level.WARNING, "Set UUID to " + args[0]);
-                internalServerIdentifier = args[0];
-            } else {
-                sender.sendMessage(ChatColor.RED + "I'm sorry, Dave, but I cannot let you do that.");
-            }
-        }*/
 
         if (label.equalsIgnoreCase("getuuid")) {
             sender.sendMessage("Server ID: " + internalServerIdentifier);
@@ -358,14 +351,6 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
                 }
             }
         }.runTaskAsynchronously(MainAPI.getPlugin());
-
-        /*DisabledDimension gameNether = new DisabledDimension();
-        gameNether.setGameType("world_nether");
-        gameNether.createGameWorldAndRegisterGame();
-
-        DisabledDimension gameEnd = new DisabledDimension();
-        gameEnd.setGameType("world_the_end");
-        gameEnd.createGameWorldAndRegisterGame();*/
     }
 
     @Override
@@ -374,7 +359,11 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
             return;
         }
         ByteArrayDataInput in = ByteStreams.newDataInput(message);
+        String subchannel = in.readUTF();
 
-        globalPlayers = in.readInt();
+        if (subchannel.equals("PlayerCount")) {
+            String server = in.readUTF();
+            globalPlayers = in.readInt();
+        }
     }
 }

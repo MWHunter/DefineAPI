@@ -51,7 +51,7 @@ public class receivePlayerTransferAndCommands {
 
                     } catch (Exception e) {
 
-                        e.printStackTrace();
+                        //e.printStackTrace();
                         MainAPI.getPlugin().getLogger().log(Level.WARNING, "Disconnected from the central server");
 
                         // Loop again!

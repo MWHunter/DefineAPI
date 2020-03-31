@@ -21,7 +21,7 @@ public class RegisterServer {
                     try {
                         //MainAPI.getPlugin().getLogger().log(Level.WARNING, "Sending this server to the mainframe");
 
-                        Socket s = new Socket("192.168.1.196", 27469);
+                        Socket s = new Socket("10.128.0.4", 27469);
                         DataInputStream dis = new DataInputStream(s.getInputStream());
 
                         String msg = dis.readUTF();
@@ -43,6 +43,12 @@ public class RegisterServer {
 
                     } catch (Exception e) {
                         MainAPI.getPlugin().getLogger().log(Level.WARNING, "Registration disconnected");
+
+                        try {
+                            Thread.sleep(60 * 1000);
+                        } catch (InterruptedException ex) {
+                            ex.printStackTrace();
+                        }
                         //e.printStackTrace();
                     }
                 }

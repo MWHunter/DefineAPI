@@ -116,6 +116,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
         Bukkit.getPluginManager().registerEvents(new DoubleJumpListener(), this);
         Bukkit.getPluginManager().registerEvents(new WorldInitEvent(), this);
         Bukkit.getPluginManager().registerEvents(new CraftingListener(), this);
+        Bukkit.getPluginManager().registerEvents(new InventoryClickListener(), this);
 
         this.getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
         this.getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", this);
@@ -294,6 +295,10 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
             }
         }
 
+        if (label.equalsIgnoreCase("openinventory")) {
+            ActionParser.doAction((Player) sender, "inventory", args[0]);
+        }
+
         return false;
     }
 
@@ -330,13 +335,13 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
 
                     if (internalServerIdentifier != null) {
                         SendStatistics sendStatistics = new SendStatistics();
-                        sendStatistics.startNetworkMonitoring("192.168.1.196");
+                        sendStatistics.startNetworkMonitoring("10.128.0.4");
 
                         PlayerQueue playerQueue = new PlayerQueue();
-                        playerQueue.ConnectToMainframe("192.168.1.196");
+                        playerQueue.ConnectToMainframe("10.128.0.4");
 
                         receivePlayerTransferAndCommands playerTransferAndCommands = new receivePlayerTransferAndCommands();
-                        playerTransferAndCommands.ConnectToMainframe("192.168.1.196");
+                        playerTransferAndCommands.ConnectToMainframe("10.128.0.4");
 
                         RegisterServer.sendHostname();
 

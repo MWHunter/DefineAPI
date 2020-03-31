@@ -19,7 +19,6 @@ public class GameLobby extends Game {
 
     @Override
     public void createGameWorldAndRegisterGame() {
-        ConfigManager cm = new ConfigManager();
 
         // Set game type before so it loads the right configs
         setGameType("gamelobby");
@@ -29,13 +28,12 @@ public class GameLobby extends Game {
         dwWorld.createArena("world", null);
         setGameWorld(dwWorld);
 
-        setGameCountdown(5);
+        setGameCountdown(45);
         setGameCountdownDecrement(10);
         setAllowPlayerMoveOnJoin(true);
         setAllowPlayersToJoinNow(true);
         setAllowPlayerDamage(false);
         setAllowPlayerShootProjectile(false);
-        super.createGameWorldAndRegisterGame();
 
         GameManager gm = new GameManager();
         gm.registerGame(getGameUUID(), this);
@@ -52,7 +50,7 @@ public class GameLobby extends Game {
             Game game;
 
             game = gm.createLocalGame(getLobbyForGametype());
-            Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers("bedwars"));
+            //Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers("bedwars"));
 
             //Bukkit.broadcastMessage("The gamelobby is for gametype and is about to start " + getLobbyForGametype());
 
@@ -63,13 +61,13 @@ public class GameLobby extends Game {
                 setGameStarting(false);
                 setLobbyForGametype("");
             } else {
-                Bukkit.broadcastMessage(ChatColor.RED + "Server start failed!  Unknown gamemode: \"" + getLobbyForGametype() + "\"  This shouldn't happen!  Tell DefineOutside!");
-                Bukkit.broadcastMessage(ChatColor.RED + "Defaulting to the bedwars gamemode and restarting countdown!");
+                Bukkit.broadcastMessage(ChatColor.RED + "Unknown gamemode: \"" + getLobbyForGametype() + "\"  Starting bedwars!");
+                //Bukkit.broadcastMessage(ChatColor.RED + "Defaulting to the bedwars gamemode and starting!");
                 setCanGameStart(false);
                 setGameStarting(false);
                 setLobbyForGametype("bedwars");
 
-                attemptStart();
+                start();
             }
         } else {
             messageGamePlayers(ChatColor.RED + "Unable to start game because a player left before it could begin!  Will begin when more players join!");
@@ -112,7 +110,7 @@ public class GameLobby extends Game {
     }
 
     public void attemptStart() {
-        Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers(getGameType()));
+        //Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers(getGameType()));
         if (uuidParticipating.size() >= GameManager.getMinPlayers(getLobbyForGametype()) && !getGameStarting() && getCanGameStart()) {
             startGameCountdown();
         }

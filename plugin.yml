@@ -31,3 +31,5 @@ commands:
     description: Finds a gamelobby and sets the gamemode
   getgamemode:
     description: What gamemode is this?
+  openinventory:
+    description: Did I forget to remove this?

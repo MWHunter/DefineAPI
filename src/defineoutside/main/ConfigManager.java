@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 public class ConfigManager {
-    FileConfiguration mapsConfig;
+    FileConfiguration parsedConfig;
     List<String> mapsList;
 
     static HashMap<String, List<String>> gamemodeToMaps = new HashMap<>();
@@ -24,6 +24,7 @@ public class ConfigManager {
     static HashMap<String, List<String>> gamemodeToKitSelectors = new HashMap<>();
 
     static HashMap<String, ItemStack[]> listOfKits = new HashMap<>();
+    static HashMap<String, ItemStack[]> listOfGUI = new HashMap<>();
 
     static HashMap<String, List<List<Location>>> listOfSpawns = new HashMap<>();
     static HashMap<String, List<List<String>>> listOfKitSelectors = new HashMap<>();
@@ -31,7 +32,7 @@ public class ConfigManager {
 
     static FileConfiguration mainConfig;
 
-    Random rand = new Random();
+    static Random rand = new Random();
 
     public void loadConfigs() {
         try {
@@ -40,11 +41,11 @@ public class ConfigManager {
                 File file = it.next();
                 File parentFile = new File(file.getParent());
 
-                mapsConfig = YamlConfiguration.loadConfiguration(file);
+                parsedConfig = YamlConfiguration.loadConfiguration(file);
 
                 if (file.getName().equalsIgnoreCase("arenas.yml")) {
 
-                    mapsList = mapsConfig.getStringList("maps");
+                    mapsList = parsedConfig.getStringList("maps");
 
                     gamemodeToMaps.put(parentFile.getName(), mapsList);
 
@@ -69,7 +70,7 @@ public class ConfigManager {
 
                                     String z = parse.substring(parse.lastIndexOf(",") + 1);
 
-                                    spawns.add(new Location(Bukkit.getWorld("World"), Integer.parseInt(x), Integer.parseInt(y), Integer.parseInt(z)));
+                                    spawns.add(new Location(Bukkit.getWorld("World"), Double.parseDouble(x), Double.parseDouble(y), Double.parseDouble(z)));
                                 }
 
                                 for (String kitSelectors : mapConfig.getStringList("kitselector." + teamsList)) {
@@ -95,7 +96,7 @@ public class ConfigManager {
 
                                     String z = location.substring(location.lastIndexOf(",") + 1);
 
-                                    specialPositions.add(new Location(Bukkit.getWorld("World"), Integer.parseInt(x), Integer.parseInt(y), Integer.parseInt(z)));
+                                    specialPositions.add(new Location(Bukkit.getWorld("World"), Double.parseDouble(x), Double.parseDouble(y), Double.parseDouble(z)));
                                 }
 
                                 if (!listOfSpecial.containsKey(map)) {
@@ -130,21 +131,29 @@ public class ConfigManager {
             for (Iterator<File> it = FileUtils.iterateFiles(new File(MainAPI.getPlugin().getDataFolder() + File.separator + "kits"), null, true); it.hasNext(); ) {
                 File file = it.next();
 
-                mapsConfig = YamlConfiguration.loadConfiguration(file);
+                parsedConfig = YamlConfiguration.loadConfiguration(file);
 
                 if (file.getName().equalsIgnoreCase("kits.yml")) {
-                    mapsList = mapsConfig.getStringList("kits");
+                    mapsList = parsedConfig.getStringList("kits");
                     gamemodeToKits.put(new File(file.getParent()).getName(), mapsList);
 
-                    mapsList = mapsConfig.getStringList("kitselector");
+                    mapsList = parsedConfig.getStringList("kitselector");
                     gamemodeToKitSelectors.put(new File(file.getParent()).getName(), mapsList);
                 } else {
                     MainAPI.getPlugin().getLogger().log(Level.INFO, "Parsing kit file " + file.getName());
-                    listOfKits.put(file.getName(), parseKitConfig(mapsConfig));
+                    listOfKits.put(file.getName(), parseKitConfig(parsedConfig));
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+
+        for (Iterator<File> it = FileUtils.iterateFiles(new File(MainAPI.getPlugin().getDataFolder() + File.separator + "guis"), null, true); it.hasNext(); ) {
+            File file = it.next();
+
+            parsedConfig = YamlConfiguration.loadConfiguration(file);
+
+            listOfGUI.put(file.getName(), parseKitConfig(parsedConfig));
         }
 
         try {
@@ -178,7 +187,7 @@ public class ConfigManager {
         }
     }
 
-    public ItemStack[] getRandomKit(String gameType) {
+    public static ItemStack[] getRandomKit(String gameType) {
         try {
             List<String> availableMaps = gamemodeToKits.get(gameType);
 
@@ -201,17 +210,31 @@ public class ConfigManager {
 
     public ItemStack[] getRandomKitSelector(String gameType, String map, int teamID) {
         try {
-            List<String> availableMaps = gamemodeToKitSelectors.get(gameType);
+            List<String> availableKits = gamemodeToKitSelectors.get(gameType);
 
             if (listOfKitSelectors.containsKey(map)) {
-                availableMaps = listOfKitSelectors.get(map).get(teamID);
+                availableKits = listOfKitSelectors.get(map).get(teamID);
             }
 
-            return listOfKits.get(availableMaps.get(rand.nextInt(availableMaps.size())));
+            return listOfKits.get(availableKits.get(rand.nextInt(availableKits.size())));
         } catch (Exception e) {
-
+            e.printStackTrace();
             return new ItemStack[41];
         }
+    }
+
+    public static ItemStack[] getKitGUI(String name) {
+        try {
+            if (listOfGUI.containsKey(name)) {
+                return listOfGUI.get(name);
+            } else {
+                MainAPI.getPlugin().getLogger().log(Level.WARNING, "Unknown GUI " + name);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return new ItemStack[27];
     }
 
     public boolean containsKit(String gameType, String map, int teamID, String kit) {
@@ -240,7 +263,7 @@ public class ConfigManager {
         return listOfKits.get(kit);
     }
 
-    public List<List<Location>> getListOfSpawns(String world) {
+    public static List<List<Location>> getListOfSpawns(String world) {
         if (listOfSpawns.get(world) == null) {
             List<List<Location>> totalLocations = new ArrayList<>();
             List<Location> singleLocation = new ArrayList<>();
@@ -254,9 +277,10 @@ public class ConfigManager {
 
     public ItemStack[] parseKitConfig(FileConfiguration kitConfig) {
         ItemTag itemTag = new ItemTag();
-        ItemStack[] itemStack = new ItemStack[41];
+        // 54 is a double chest.  Max GUI size?
+        ItemStack[] itemStack = new ItemStack[54];
 
-        for (int i = 0; i < 41; i++) {
+        for (int i = 0; i < 54; i++) {
             ItemStack itemStackParsed = new ItemStack(Material.AIR, 1);
 
             int amountInt = kitConfig.getInt("items." + i + ".amount");

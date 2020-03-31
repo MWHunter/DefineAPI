@@ -5,9 +5,7 @@ import defineoutside.creator.DefineWorld;
 import defineoutside.creator.Game;
 import defineoutside.games.*;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.World;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
@@ -20,23 +18,10 @@ public class GameManager {
     private static HashMap<UUID, DefineWorld> completeArenasMap = new HashMap<UUID, DefineWorld>();
     private static HashMap<World, Game> getGameFromBukkitWorld = new HashMap<World, Game>();
 
-    Random rand = new Random();
-
-    public String mainGameType = "gamelobby";
-
     // TODO: This will be responsible for the specific type of game to register, but that is later
     // TODO: This is responsible for configs and stuff
 
     public Game createLocalGame(String gameType) {
-        FileConfiguration mapsConfig;
-        File listOfMaps;
-        List<String> mapsList;
-        String mapSelected;
-
-        FileConfiguration kitConfig;
-        File kitList;
-        List<String> kitsList;
-        String kitSelected;
 
         Game game;
         DefineWorld dw;
@@ -44,68 +29,6 @@ public class GameManager {
         ConfigManager cm = new ConfigManager();
 
         switch (gameType) {
-            case "duel":
-                game = new Duel();
-
-                game.setSpawnKitName(cm.getRandomKitSelectorName(gameType));
-                if (game.getSpawnKitName() == null) {
-                    game.setSpawnKitName(cm.getRandomKitName(gameType));
-                } else {
-                    game.setSpawnItemList(cm.getKit(game.getSpawnKitName()));
-                }
-
-                game.setWorldFolder(cm.getRandomMap(gameType));
-
-                // Make it get the world spawn points from config, the kit config, and then register the game with gamemanager (this class!)
-                game.createGameWorldAndRegisterGame();
-
-                // Begin to create the world, async
-                dw = game.getGameWorld();
-                dw.createArena(game.getGameUUID().toString(), game.getWorldFolder());
-
-                // When the world is ready, register it.  Not ready instantly since async
-                new BukkitRunnable() {
-                    public void run() {
-                        if (dw.isReady()) {
-                            registerWorld(game.getGameUUID(), dw);
-                            cancel();
-                        }
-                    }
-                }.runTaskTimer(MainAPI.getPlugin(), 0L, 5L);
-
-                return game;
-
-            case "pit":
-                game = new Pit();
-
-                // Make it get the world spawn points from config, the kit config, and then register the game with gamemanager (this class!)
-                game.setSpawnKitName(cm.getRandomKitSelectorName(gameType));
-                if (game.getSpawnKitName() == null) {
-                    game.setSpawnKitName(cm.getRandomKitName(gameType));
-                } else {
-                    game.setSpawnItemList(cm.getKit(game.getSpawnKitName()));
-                }
-
-                game.setWorldFolder(cm.getRandomMap(gameType));
-
-                // Make it get the world spawn points from config, the kit config, and then register the game with gamemanager (this class!)
-                game.createGameWorldAndRegisterGame();
-
-                // Begin to create the world, async
-                dw = game.getGameWorld();
-                dw.createArena(game.getGameUUID().toString(), game.getWorldFolder());
-
-                // When the world is ready, register it.  Not ready instantly since async
-                new BukkitRunnable() {
-                    public void run() {
-                        if (dw.isReady()) {
-                            registerWorld(game.getGameUUID(), dw);
-                            cancel();
-                        }
-                    }
-                }.runTaskTimer(MainAPI.getPlugin(), 0L, 5L);
-
-                return game;
             case "gamelobby":
                 game = new GameLobby();
 

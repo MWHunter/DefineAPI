@@ -9,15 +9,13 @@ import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.ArrayUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 public class Game {
@@ -30,6 +28,7 @@ public class Game {
     private int maxGameTime = 30 * 60;
     private int respawnTime = 5;
     private int teleportIndex = 0;
+    public int gameTime = 0;
 
     // Chat, combat, join, move, quit needs to be worked on
     private boolean allowBlockBreak = false;
@@ -88,6 +87,11 @@ public class Game {
             Material.LIGHT_BLUE_WOOL, Material.PINK_WOOL, Material.GRAY_WOOL, Material.LIGHT_GRAY_WOOL, Material.CYAN_WOOL, Material.PURPLE_WOOL, Material.GREEN_WOOL, Material.BLACK_WOOL, Material.BROWN_WOOL};
     public ChatColor[] teamColors = new ChatColor[]{ChatColor.RED, ChatColor.BLUE, ChatColor.GREEN, ChatColor.YELLOW, ChatColor.WHITE, ChatColor.GOLD, ChatColor.DARK_PURPLE, ChatColor.AQUA, ChatColor.LIGHT_PURPLE,
             ChatColor.DARK_GRAY, ChatColor.GRAY, ChatColor.DARK_AQUA, ChatColor.DARK_RED, ChatColor.GREEN, ChatColor.BLACK, ChatColor.WHITE};
+    // TODO: Make colors from RGB instead of guessing what these stupid names means
+    // What is Fuchsia?  I can't find any word that looks remotely like it?  Where did English steal this word from?
+    public Color[] teamDyes = new Color[]{Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.WHITE, Color.ORANGE, Color.FUCHSIA, Color.TEAL, Color.RED, Color.BLACK, Color.GRAY,
+            Color.OLIVE, Color.YELLOW, Color.MAROON, Color.GREEN, Color.BLACK, Color.NAVY};
+    public ArrayList<Material> dyedItems = new ArrayList<>(Arrays.asList(Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS));
 
     public ArrayList<UUID> uuidParticipating = new ArrayList<UUID>();
     public ArrayList<UUID> uuidSpectating = new ArrayList<UUID>();
@@ -138,14 +142,12 @@ public class Game {
             uuidDefineTeams.add(defineTeam);
         }
 
-        ConfigManager cm = new ConfigManager();
-
         // TODO: Attempt to get world spawns
         if (getWorldFolder() == null) {
             setWorldFolder(new File("world"));
         }
 
-        List<List<Location>> listOfListOfSpawns = cm.getListOfSpawns(getWorldFolder().getName());
+        List<List<Location>> listOfListOfSpawns = ConfigManager.getListOfSpawns(getWorldFolder().getName());
 
         for (int i = 0; i < teams; i++) {
             DefineTeam itDefineTeam = uuidDefineTeams.get(i);
@@ -153,7 +155,8 @@ public class Game {
             itDefineTeam.setSpawns(listOfListOfSpawns.get(i % listOfListOfSpawns.size()));
         }
 
-        spawnItemList = cm.getRandomKit(gameType);
+        spawnItemList = ConfigManager.getRandomKit(gameType);
+
         GameManager gm = new GameManager();
         gm.registerGame(gameUUID, this);
     }
@@ -292,13 +295,6 @@ public class Game {
             }
         }
 
-        /*for (UUID playerUUID : getUuidParticipating()) {
-            // TODO: Use configs to get this location, make sure to get the location out of the loop for efficiency
-            // Async because players won't notice an extra second being spent for this
-            PaperLib.teleportAsync(Bukkit.getPlayer(playerUUID), new Location(Bukkit.getWorld("world"), 0, 70, 0));
-        }*/
-        // Everyone is out, so it is now safe to unload the world
-
         new BukkitRunnable() {
             World unloadWorld = getGameWorld().getBukkitWorld();
 
@@ -326,6 +322,7 @@ public class Game {
         definePlayer.reset();
         definePlayer.setCanInfiniteRespawn(false);
         definePlayer.setInGameType(gameType);
+        definePlayer.setKit(getSpawnKitName());
 
         playerRespawn(uuid, allowPlayerMoveOnJoin, !hasStarted);
     }
@@ -357,7 +354,6 @@ public class Game {
 
         ItemStack[] giveItems;
         if (kitSelector) {
-            // TODO: Make this by team
             giveItems = cm.getRandomKitSelector(getGameType(), getWorldFolder().getName(), ArrayUtils.indexOf(teamNames, definePlayer.getPlayerDefineTeam().getName()));
         } else {
             giveItems = cm.getKit(definePlayer.getKit());
@@ -366,8 +362,6 @@ public class Game {
         givePlayerKit(bukkitPlayer, giveItems);
 
         // Check if the player has already been teleported to a valid spawn position
-        //if (!definePlayer.getPlayerTeam().containsSpawn((int) bukkitPlayer.getLocation().getX(), (int) bukkitPlayer.getLocation().getZ()) &&
-        //        !bukkitPlayer.getGameMode().equals(GameMode.SPECTATOR) && !bukkitPlayer.getLocation().getWorld().getName().equals(getGameWorld().getBukkitWorld().getName())) {
         Location teleportLocation = definePlayer.getPlayerDefineTeam().getNextSpawn();
         // Config is loaded before we have the world ready, so we must set world
         teleportLocation.setWorld(getGameWorld().getBukkitWorld());
@@ -398,7 +392,15 @@ public class Game {
         player.getInventory().clear();
 
         for (int i = 0; i < 41; i++) {
-            player.getInventory().setItem(i, giveItems[i]);
+            ItemStack givenItem = giveItems[i];
+
+            if (dyedItems.contains(givenItem.getType())) {
+                LeatherArmorMeta meta = (LeatherArmorMeta) givenItem.getItemMeta();
+                DefinePlayer definePlayer = PlayerManager.getDefinePlayer(player.getUniqueId());
+                meta.setColor(teamDyes[ArrayUtils.indexOf(teamNames, definePlayer.getPlayerDefineTeam().getName())]);
+                givenItem.setItemMeta(meta);
+            }
+            player.getInventory().setItem(i, givenItem);
         }
     }
 
@@ -464,29 +466,31 @@ public class Game {
     }
 
     public void playerDeath(DefinePlayer definePlayer, boolean canRespawn) {
-        Player player = definePlayer.getBukkitPlayer();
+        if (!isGameEnding) {
+            Player player = definePlayer.getBukkitPlayer();
 
-        player.setGameMode(GameMode.SPECTATOR);
-        if (canRespawn) {
+            player.setGameMode(GameMode.SPECTATOR);
+            if (canRespawn) {
 
-            player.sendMessage(ChatColor.AQUA + "You have died!  Respawning in " + ChatColor.WHITE + (respawnTime - 1) + ChatColor.AQUA + " seconds.");
-            new BukkitRunnable() {
-                int currentSpawnTimer = respawnTime - 1;
+                player.sendMessage(ChatColor.AQUA + "You have died!  Respawning in " + ChatColor.WHITE + (respawnTime - 1) + ChatColor.AQUA + " seconds.");
+                new BukkitRunnable() {
+                    int currentSpawnTimer = respawnTime - 1;
 
-                public void run() {
+                    public void run() {
 
-                    player.sendMessage(ChatColor.AQUA + "Respawning in " + ChatColor.WHITE + --currentSpawnTimer + ChatColor.AQUA + " seconds.");
-                    if (currentSpawnTimer <= 0) {
-                        playerRespawn(definePlayer.getPlayerUUID());
-                        this.cancel();
+                        player.sendMessage(ChatColor.AQUA + "Respawning in " + ChatColor.WHITE + --currentSpawnTimer + ChatColor.AQUA + " seconds.");
+                        if (currentSpawnTimer <= 0) {
+                            playerRespawn(definePlayer.getPlayerUUID());
+                            this.cancel();
+                        }
                     }
-                }
-            }.runTaskTimer(MainAPI.getPlugin(), 20L, 20L);
-        } else {
-            player.sendMessage(ChatColor.AQUA + "You have died!  You will respawn in the next game");
+                }.runTaskTimer(MainAPI.getPlugin(), 20L, 20L);
+            } else {
+                player.sendMessage(ChatColor.AQUA + "You have died!  You will respawn in the next game");
 
-            definePlayer.setAlive(false);
-            checkEndByEliminations();
+                definePlayer.setAlive(false);
+                checkEndByEliminations();
+            }
         }
     }
 
@@ -839,5 +843,9 @@ public class Game {
 
     public void setAllowCrafting(boolean allowCrafting) {
         this.allowCrafting = allowCrafting;
+    }
+
+    public void setAllowItemDrop(boolean allowItemDrop) {
+        this.allowItemDrop = allowItemDrop;
     }
 }

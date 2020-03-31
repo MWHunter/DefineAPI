@@ -3,28 +3,29 @@ package defineoutside.games;
 import defineoutside.creator.DefinePlayer;
 import defineoutside.creator.DefineTeam;
 import defineoutside.creator.Game;
-import defineoutside.main.ConfigManager;
-import defineoutside.main.GameManager;
-import defineoutside.main.MainAPI;
-import defineoutside.main.PlayerManager;
+import defineoutside.main.*;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Bed;
 import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.ArrayUtils;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class Bedwars extends Game implements Listener {
     List<Location> objectives = new ArrayList<>();
@@ -37,10 +38,20 @@ public class Bedwars extends Game implements Listener {
     List<Location> bedLocations = new ArrayList<>();
     List<Location> catalystLocations = new ArrayList<>();
     List<Location> nuggetLocations = new ArrayList<>();
+    List<Location> shopLocations = new ArrayList<>();
 
     HashMap<UUID, Integer> playersAndKills = new HashMap<>();
     HashMap<UUID, Integer> playersAndFinalKills = new HashMap<>();
     HashMap<UUID, Integer> playersAndBedEliminations = new HashMap<>();
+
+    HashMap<String, Double> teamGoldProduction = new HashMap<>();
+
+    int catalystSpawnInterval = 100000;
+    int goldSpawnInterval = 100000;
+
+    ItemStack gold;
+    ItemStack catalyst;
+
 
     @Override
     public void createGameWorldAndRegisterGame() {
@@ -54,6 +65,7 @@ public class Bedwars extends Game implements Listener {
         setAllowFluidFlow(true);
         setAllowLeafDecay(true);
         setAllowPlayerMoveOnJoin(false);
+        setAllowItemDrop(true);
 
         Bukkit.getPluginManager().registerEvents(this, MainAPI.getPlugin());
         super.createGameWorldAndRegisterGame();
@@ -66,9 +78,28 @@ public class Bedwars extends Game implements Listener {
         bedLocations = ConfigManager.getSpecialPositionsList(getWorldFolder().getName(), "bed");
         catalystLocations = ConfigManager.getSpecialPositionsList(getWorldFolder().getName(), "catalyst");
         nuggetLocations = ConfigManager.getSpecialPositionsList(getWorldFolder().getName(), "nugget");
+        shopLocations = ConfigManager.getSpecialPositionsList(getWorldFolder().getName(), "shop");
+
+        catalystSpawnInterval = 30 + ((catalystLocations.size() - 1) * 15);
+        goldSpawnInterval = 20;
+
+        gold = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta itemMeta = gold.getItemMeta();
+        itemMeta.setDisplayName(ChatColor.AQUA + "Gold");
+        itemMeta.setLore(Arrays.asList(ChatColor.WHITE + "Instant gold!  Return it to a shopkeeper"));
+        gold.setItemMeta(itemMeta);
+
+        catalyst = new ItemStack(Material.NETHER_STAR);
+        ItemMeta itemMeta2 = catalyst.getItemMeta();
+        itemMeta2.setDisplayName(ChatColor.AQUA + "Catalyst");
+        itemMeta2.setLore(Arrays.asList(ChatColor.WHITE + "Gives your team increased gold production, return it to the shopkeeper"));
+        catalyst.setItemMeta(itemMeta2);
+
 
         // Bed spawning logic
-        for (Location bed : bedLocations) {
+        for (DefineTeam team : uuidDefineTeams) {
+            Location bed = bedLocations.get(ArrayUtils.indexOf(teamNames, team.getName()));
+
             int bedInt = bedLocations.indexOf(bed);
             Material bedType = bedTypes[bedInt];
 
@@ -77,7 +108,6 @@ public class Bedwars extends Game implements Listener {
 
             World gameWorld = getGameWorld().getBukkitWorld();
             Block formerBlock = gameWorld.getBlockAt(bed);
-            formerBlock.setType(Material.WHITE_BED);
 
             BlockFace bedFace;
 
@@ -101,7 +131,78 @@ public class Bedwars extends Game implements Listener {
             }
 
             setBed(formerBlock, bedFace, bedType);
+
+            // I'll just throw team gold production in here because why not?
+            teamGoldProduction.put(team.getName(), 1.2D);
         }
+
+        // Shop spawning logic
+        for (Location shop : shopLocations) {
+
+            shop.setWorld(getGameWorld().getBukkitWorld());
+
+            double x = shop.getX();
+            double z = shop.getZ();
+
+            if (Math.abs(x) > Math.abs(z)) {
+                if (z > 0) {
+                    shop.setDirection(new Vector(0, 0, -1));
+                } else {
+                    shop.setDirection(new Vector(0, 0, 1));
+                }
+            } else {
+                if (x > 0) {
+                    shop.setDirection(new Vector(-1, 0, 0));
+                } else {
+                    shop.setDirection(new Vector(1, 0, 0));
+                }
+            }
+
+            Villager villager = (Villager) shop.getWorld().spawnEntity(shop, EntityType.VILLAGER);
+            villager.setVillagerType(Villager.Type.SNOW);
+            villager.setProfession(Villager.Profession.TOOLSMITH);
+            villager.setAI(false);
+            villager.setInvulnerable(true);
+            villager.setCollidable(false);
+            villager.setGravity(false);
+            villager.setCustomName("Right click for shop");
+        }
+
+        // TODO: Catalyst and gold spawning logic
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                gameTime++;
+
+                if (isGameEnding) {
+                    cancel();
+                }
+
+                for (UUID uuid : getUuidParticipating()) {
+                    DefinePlayer inspectedPlayer = PlayerManager.getDefinePlayer(uuid);
+
+                    inspectedPlayer.setMoney(inspectedPlayer.getMoney() + teamGoldProduction.get(inspectedPlayer.getPlayerDefineTeam().getName()));
+                }
+
+                // Catalyst spawning logic
+                if (catalystSpawnInterval - (gameTime % catalystSpawnInterval) == 1) {
+                    for (Location location : catalystLocations) {
+
+
+                        getGameWorld().getBukkitWorld().dropItem(location, catalyst).setVelocity(new Vector(0,0,0));
+                    }
+                }
+
+                // Gold spawning logic
+                if (goldSpawnInterval - (gameTime % goldSpawnInterval) == 1) {
+                    for (Location location : nuggetLocations) {
+
+                        getGameWorld().getBukkitWorld().dropItem(location, gold).setVelocity(new Vector(0,0,0));
+                    }
+                }
+            }
+        }.runTaskTimer(MainAPI.getPlugin(), 20, 20);
+
     }
 
     @Override
@@ -112,7 +213,7 @@ public class Bedwars extends Game implements Listener {
 
         definePlayer.addObjective("topblank", ChatColor.BOLD + "", 13);
 
-        definePlayer.addObjective("objective", ChatColor.AQUA + "Catalyst in: 0:00", 12);
+        definePlayer.addObjective("objective", ChatColor.WHITE + "Catalyst in: " + ChatColor.AQUA + "0", 12);
 
         definePlayer.addObjective("rankblank", ChatColor.AQUA + "", 11);
 
@@ -123,6 +224,8 @@ public class Bedwars extends Game implements Listener {
         definePlayer.addObjective("Yellow", ChatColor.RED + "✗ " + ChatColor.YELLOW + "Yellow", 7);
 
         definePlayer.addObjective("teamsblank", ChatColor.GREEN + "", 6);
+
+        definePlayer.addObjective("gold", ChatColor.WHITE + "Gold: " + ChatColor.GOLD + "0", 5);
 
         definePlayer.addObjective("kills", ChatColor.WHITE + "Kills: " + ChatColor.AQUA + "0", 5);
 
@@ -165,8 +268,15 @@ public class Bedwars extends Game implements Listener {
                         }
 
                         // Update player kills, final kills, and bed eliminations
+                        // Check for dividing by zero.
+                        // minus one because scoreboard is delayed by a second, and modulus reports to 1, and not 0.
+                        //Bukkit.broadcastMessage("Scoreboard says" + (catalystSpawnInterval - (gameTime % catalystSpawnInterval) - 1));
+                        if (catalystLocations.size() != 0) {
+                            definePlayer.updateObjective("objective", ChatColor.WHITE + "Catalyst in: " + (catalystSpawnInterval - (gameTime % catalystSpawnInterval) - 1));
+                        }
+                        definePlayer.updateObjective("gold", ChatColor.WHITE + "Gold: " + ChatColor.GOLD + (int) definePlayer.getMoney());
                         definePlayer.updateObjective("kills", ChatColor.WHITE + "Kills: " + ChatColor.AQUA + playersAndKills.get(player.getUniqueId()));
-                        definePlayer.updateObjective("finalkills", ChatColor.WHITE + "Final Kills: " + ChatColor.AQUA +  playersAndFinalKills.get(player.getUniqueId()));
+                        definePlayer.updateObjective("finalkills", ChatColor.WHITE + "Final Kills: " + ChatColor.AQUA + playersAndFinalKills.get(player.getUniqueId()));
                         definePlayer.updateObjective("beds", ChatColor.WHITE + "Broken Beds: " + ChatColor.AQUA + playersAndBedEliminations.get(player.getUniqueId()));
                     } else {
                         cancel();
@@ -185,6 +295,7 @@ public class Bedwars extends Game implements Listener {
 
         DefinePlayer definePlayer = PlayerManager.getDefinePlayer(playerUUID);
         definePlayer.setCanInfiniteRespawn(true);
+        definePlayer.setMoney(500);
 
         playersAndKills.put(playerUUID, 0);
         playersAndFinalKills.put(playerUUID, 0);
@@ -249,6 +360,54 @@ public class Bedwars extends Game implements Listener {
     public void onBlockExplosionEvent(EntityExplodeEvent event) {
         if (GameManager.getGameFromWorld(event.getEntity().getWorld()).equals(this)) {
             event.blockList().removeIf(blockList -> blockList.getType().toString().contains("BED"));
+        }
+    }
+
+    @EventHandler
+    public void onPlayerInteractVillager(PlayerInteractEntityEvent event) {
+        Entity villager = event.getRightClicked();
+        if (villager instanceof Villager) {
+            if (GameManager.getGameFromWorld(villager.getWorld()).equals(this)) {
+                Player player = event.getPlayer();
+                DefinePlayer definePlayer = PlayerManager.getDefinePlayer(player.getUniqueId());
+
+                ActionParser.doAction(player, "inventory", "bedwars.yml");
+                event.setCancelled(true);
+
+                if (player.getInventory().contains(Material.GOLD_INGOT)) {
+                    int amountOfGold = 0;
+                    for (ItemStack inventoryStack : player.getInventory().getContents()) {
+                        if (inventoryStack != null && inventoryStack.getType().equals(Material.GOLD_INGOT)) {
+                            amountOfGold += inventoryStack.getAmount();
+                        }
+                    }
+
+                    player.getInventory().remove(Material.GOLD_INGOT);
+
+                    player.sendMessage(ChatColor.WHITE + "You received " + ChatColor.GOLD + amountOfGold * 50 + " gold" + ChatColor.WHITE + " from " + amountOfGold + " ingots");
+                    definePlayer.setMoney(definePlayer.getMoney() + amountOfGold * 50);
+                }
+
+                if (player.getInventory().contains(Material.NETHER_STAR)) {
+                    String teamName = PlayerManager.getDefinePlayer(player.getUniqueId()).getPlayerDefineTeam().getName();
+                    Double teamGold = teamGoldProduction.get(teamName);
+
+                    int amountOfCatalyst = 0;
+                    for (ItemStack inventoryStack : player.getInventory().getContents()) {
+                        if (inventoryStack != null && inventoryStack.getType().equals(Material.NETHER_STAR)) {
+                            amountOfCatalyst += inventoryStack.getAmount();
+                        }
+                    }
+
+                    player.getInventory().remove(Material.NETHER_STAR);
+
+                    int teamGoldIncreased = (int)((teamGold * Math.pow(1.15, amountOfCatalyst)) * 100);
+
+                    player.sendMessage(ChatColor.WHITE + "Team gold production increased to " + teamGoldIncreased/100D);
+
+                    teamGoldProduction.put(teamName, teamGoldIncreased / 100D);
+                }
+            }
         }
     }
 

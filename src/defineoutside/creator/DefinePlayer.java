@@ -7,6 +7,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
@@ -23,6 +25,7 @@ public class DefinePlayer {
     private String kit = "empty";
 
     private int lives = 0;
+    public double money = 0;
 
     private boolean canInfiniteRespawn = true;
 
@@ -62,7 +65,7 @@ public class DefinePlayer {
 
             // Prevent players from moving
             Entity pig = getBukkitPlayer().getLocation().getWorld().spawnEntity(getBukkitPlayer().getLocation().setDirection(pigDirection), EntityType.PIG);
-            //((LivingEntity) pig).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
+            ((LivingEntity) pig).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 1, false, false));
             pig.addPassenger(getBukkitPlayer());
             pig.setCustomName("player freeze");
             pig.setCustomNameVisible(false);
@@ -216,5 +219,13 @@ public class DefinePlayer {
 
     public void setKit(String kit) {
         this.kit = kit;
+    }
+
+    public double getMoney() {
+        return money;
+    }
+
+    public void setMoney(double money) {
+        this.money = money;
     }
 }

@@ -1,6 +1,7 @@
 package defineoutside.listener;
 
 import defineoutside.creator.DefinePlayer;
+import defineoutside.main.ActionParser;
 import defineoutside.main.ItemTag;
 import defineoutside.main.PlayerManager;
 import org.bukkit.ChatColor;
@@ -38,7 +39,8 @@ public class InventoryClickListener implements Listener {
                         definePlayer.setMoney(definePlayer.getMoney() - Integer.parseInt(cost));
                         player.getInventory().addItem(new ItemStack(Material.valueOf(boughtItem), Integer.parseInt(boughtItemAmount)));
 
-                        player.sendMessage(ChatColor.WHITE + "You bought " + boughtItemAmount + " " + boughtItem.toLowerCase() + " for " + ChatColor.GOLD + cost + " gold");
+                        player.sendMessage(ChatColor.WHITE + "You bought " + boughtItemAmount + " " + boughtItem.toLowerCase().replace("_", " ")
+                                + " for " + ChatColor.GOLD + cost + " gold");
                     } else {
                         // No gold
                         player.sendMessage(ChatColor.RED + "You do not have enough gold to purchase this item");
@@ -46,6 +48,15 @@ public class InventoryClickListener implements Listener {
                 }  else {
                     // No inventory space
                     player.sendMessage(ChatColor.RED + "Your inventory is full");
+                }
+            } else {
+                action = ItemTag.getTag(clickedItem, "DefineAPI");
+                if (action.equalsIgnoreCase("Inventory")) {
+                    DefinePlayer definePlayer = PlayerManager.getDefinePlayer(player.getUniqueId());
+                    String inventoryName = ItemTag.getTag(clickedItem, "Inventory");
+
+                    ActionParser.doAction(definePlayer, "inventory", inventoryName);
+                    event.setCancelled(true);
                 }
             }
 

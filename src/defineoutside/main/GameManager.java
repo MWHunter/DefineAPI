@@ -21,7 +21,7 @@ public class GameManager {
     // TODO: This will be responsible for the specific type of game to register, but that is later
     // TODO: This is responsible for configs and stuff
 
-    public Game createLocalGame(String gameType) {
+    public static Game createLocalGame(String gameType) {
 
         Game game;
         DefineWorld dw;
@@ -109,22 +109,30 @@ public class GameManager {
         return -1;
     }
 
-    public void registerGame(UUID uuid, Game gameObject) {
+    public static int getMaxTeams(String gametype) {
+        switch (gametype) {
+            case "bedwars":
+                return 4;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    public static void registerGame(UUID uuid, Game gameObject) {
         completeGamesMap.put(uuid, gameObject);
         Bukkit.getLogger().log(Level.SEVERE, uuid + " has been added to gameslist.  There are currently " + completeGamesMap.size() + " games");
     }
 
-    public void registerWorld(UUID uuid, DefineWorld defineWorld) {
+    public static void registerWorld(UUID uuid, DefineWorld defineWorld) {
         completeArenasMap.put(uuid, defineWorld);
         getGameFromBukkitWorld.put(defineWorld.getBukkitWorld(), completeGamesMap.get(uuid));
     }
 
-    public void deleteGame(UUID uuid) {
+    public static void deleteGame(UUID uuid) {
         completeGamesMap.remove(uuid);
         Bukkit.getLogger().log(Level.SEVERE, uuid + " has been removed gameslistThere are currently " + completeGamesMap.size() + " games");
     }
 
-    public void deleteWorld(UUID uuid) {
+    public static void deleteWorld(UUID uuid) {
         completeArenasMap.remove(uuid);
         getGameFromBukkitWorld.remove(Bukkit.getWorld(uuid));
     }
@@ -133,27 +141,25 @@ public class GameManager {
         return getGameFromBukkitWorld.get(world);
     }
 
-    static public HashMap<UUID, Game> getGamesHashMap() {
+    public static HashMap<UUID, Game> getGamesHashMap() {
         return completeGamesMap;
     }
 
-    public HashMap<UUID, DefineWorld> getWorldsHashMap() {
+    public static HashMap<UUID, DefineWorld> getWorldsHashMap() {
         return completeArenasMap;
     }
 
     // Quickly transfer all active players from one game to another
-    public void transferPlayers(Game fromGame, Game toGame) {
+    public static void transferPlayers(Game fromGame, Game toGame) {
         transferPlayers(fromGame.getUuidParticipating(), toGame);
     }
 
     // Quickly transfer some active players from one game to another
-    public void transferPlayers(List<UUID> uuidPlayers, Game toGame) {
+    public static void transferPlayers(List<DefinePlayer> uuidPlayers, Game toGame) {
 
-        PlayerManager pm = new PlayerManager();
-
-        for (UUID playerUUID : uuidPlayers) {
-            pm.getDefinePlayer(playerUUID).setInGameType(toGame.getGameType());
-            pm.getDefinePlayer(playerUUID).setLockInGame(true);
+        for (DefinePlayer definePlayer : uuidPlayers) {
+            definePlayer.setInGameType(toGame.getGameType());
+            definePlayer.setLockInGame(true);
         }
 
         new BukkitRunnable() {
@@ -161,26 +167,23 @@ public class GameManager {
                 // Takes some time due to world preparation
                 if (toGame.getGameWorld().isReady()) {
                     // Since this is a reference back to the game we are transferring, we need to clone the list
-                    List<UUID> uuidPlayersClone = new ArrayList<>(uuidPlayers);
+                    List<DefinePlayer> uuidPlayersClone = new ArrayList<>(uuidPlayers);
 
                     // Prevent the game from starting before all players are transferred
                     toGame.setCanGameStart(false);
 
                     // Move ALL players (From cloned list)
-                    for (UUID playerUUID : uuidPlayersClone) {
-
-                        // Unlock the player to transfer him
-                        DefinePlayer dp = PlayerManager.getDefinePlayer(playerUUID);
-                        dp.setLockInGame(false);
+                    for (DefinePlayer definePlayer : uuidPlayersClone) {
+                        definePlayer.setLockInGame(false);
 
                         // Remove player from every game
                         for (Map.Entry<UUID, Game> game : GameManager.getGamesHashMap().entrySet()) {
-                            if (GameManager.getGamesHashMap().get(game.getKey()).getUuidParticipating().contains(playerUUID)) {
-                                GameManager.getGamesHashMap().get(game.getKey()).playerLeave(playerUUID);
+                            if (GameManager.getGamesHashMap().get(game.getKey()).getUuidParticipating().contains(definePlayer)) {
+                                GameManager.getGamesHashMap().get(game.getKey()).playerLeave(definePlayer);
                             }
                         }
 
-                        toGame.playerJoin(playerUUID);
+                        toGame.playerJoin(definePlayer);
                     }
 
                     // And then try to start it, letting it choose whether it wants to

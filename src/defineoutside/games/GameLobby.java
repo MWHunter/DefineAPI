@@ -1,9 +1,12 @@
 package defineoutside.games;
 
 import defineoutside.creator.DefinePlayer;
+import defineoutside.creator.DefineTeam;
 import defineoutside.creator.DefineWorld;
 import defineoutside.creator.Game;
-import defineoutside.main.*;
+import defineoutside.main.GameManager;
+import defineoutside.main.MainAPI;
+import defineoutside.main.Matchmaking;
 import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -11,33 +14,38 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.logging.Level;
 
 public class GameLobby extends Game {
     private String lobbyForGametype = "";
+
+    private boolean cancelStart = false;
 
     @Override
     public void createGameWorldAndRegisterGame() {
 
         // Set game type before so it loads the right configs
         setGameType("gamelobby");
+        // Default the gametype to bedwars
+        //setLobbyForGametype("bedwars");
+
         super.createGameWorldAndRegisterGame();
 
         DefineWorld dwWorld = new DefineWorld();
         dwWorld.createArena("world", null);
         setGameWorld(dwWorld);
 
-        setGameCountdown(45);
+        setGameCountdown(10);
         setGameCountdownDecrement(10);
         setAllowPlayerMoveOnJoin(true);
         setAllowPlayersToJoinNow(true);
         setAllowPlayerDamage(false);
         setAllowPlayerShootProjectile(false);
 
-        GameManager gm = new GameManager();
-        gm.registerGame(getGameUUID(), this);
-        gm.registerWorld(getGameUUID(), dwWorld);
+        GameManager.registerGame(getGameUUID(), this);
+        GameManager.registerWorld(getGameUUID(), dwWorld);
 
         setJoinServerLocation(new Location(Bukkit.getWorld("world"), 0, 70, 0));
     }
@@ -45,18 +53,54 @@ public class GameLobby extends Game {
     @Override
     public void start() {
         if (uuidParticipating.size() >= GameManager.getMinPlayers(getLobbyForGametype())) {
-            GameManager gm = new GameManager();
-
-            Game game;
-
-            game = gm.createLocalGame(getLobbyForGametype());
-            //Bukkit.broadcastMessage(uuidParticipating.size() + " VS min " + GameManager.getMinPlayers("bedwars"));
-
-            //Bukkit.broadcastMessage("The gamelobby is for gametype and is about to start " + getLobbyForGametype());
+            Game game = GameManager.createLocalGame(getLobbyForGametype());
 
             if (game != null) {
-                gm.transferPlayers(getUuidParticipating(), game);
+                // Figure out best number of teams
+                int maxTeams = 4;
+                double minTeamDifferenceTimes = Double.MAX_VALUE;
+                int bestNumberOfTeams = maxTeams;
+                int numberOfPlayers = uuidParticipating.size();
 
+                for (int teamCount = maxTeams; teamCount >= 2; teamCount--) {
+
+                    int playerExtras = numberOfPlayers % teamCount;
+                    int playersMinOnTeam = numberOfPlayers / teamCount;
+
+                    double currentExtraMultiplier;
+                    if (playerExtras != 0) {
+                        currentExtraMultiplier = 1D / (double)playersMinOnTeam;
+                    } else {
+                        currentExtraMultiplier = 0;
+                    }
+
+                    if (currentExtraMultiplier <= minTeamDifferenceTimes && minTeamDifferenceTimes >= 1) {
+                        bestNumberOfTeams = teamCount;
+                        minTeamDifferenceTimes = currentExtraMultiplier;
+                    }
+                }
+
+                game.setTeams(bestNumberOfTeams);
+                game.setGenerateTeams(true);
+                game.createTeams();
+
+                // Shuffle the list
+                Collections.shuffle(uuidParticipating);
+                ArrayList<DefineTeam> newTeams = game.uuidDefineTeams;
+
+                // We have put the best number of teams in the variable... bestNumberOfTeams
+                // Time to place everyone into teams!
+                for (DefinePlayer definePlayer : uuidParticipating) {
+                    definePlayer.setPlayerDefineTeam(newTeams.get(uuidParticipating.indexOf(definePlayer) % bestNumberOfTeams));
+                    newTeams.get(uuidParticipating.indexOf(definePlayer) % bestNumberOfTeams).addPlayer(definePlayer);
+                }
+
+                game.setUuidDefineTeams(newTeams);
+
+                // Transfer players
+                GameManager.transferPlayers(getUuidParticipating(), game);
+
+                // Reset the lobby
                 setCanGameStart(true);
                 setGameStarting(false);
                 setLobbyForGametype("");
@@ -77,13 +121,13 @@ public class GameLobby extends Game {
     }
 
     @Override
-    public void playerLeave(UUID player) {
+    public void playerLeave(DefinePlayer player) {
         uuidParticipating.remove(player);
+        player.getPlayerDefineTeam().removePlayer(player);
 
-        PlayerManager pm = new PlayerManager();
-        pm.getDefinePlayer(player).getPlayerDefineTeam().removePlayer(player);
-
-        checkEndByEliminations();
+        if (uuidParticipating.size() < GameManager.getMinPlayers(getLobbyForGametype())) {
+            isGameEnding = true;
+        }
     }
 
     @Override
@@ -117,11 +161,8 @@ public class GameLobby extends Game {
     }
 
     @Override
-    public void playerRespawn(UUID uuid, boolean canMove, boolean kitSelector) {
-        PlayerManager pm = new PlayerManager();
-        Player bukkitPlayer = Bukkit.getPlayer(uuid);
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
-
+    public void playerRespawn(DefinePlayer definePlayer, boolean canMove, boolean kitSelector) {
+        Player bukkitPlayer = definePlayer.getBukkitPlayer();
         // This will null pointer if the player leaves the same tick as the game starts
         try {
             bukkitPlayer.setGameMode(GameMode.SURVIVAL);
@@ -145,22 +186,13 @@ public class GameLobby extends Game {
                 } else {
                     bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
                     Matchmaking mm = new Matchmaking();
-                    mm.addPlayerToCentralQueue(uuid, "lobby");
+                    mm.addPlayerToCentralQueue(definePlayer, "lobby");
                 }
             });
         }
 
         if (canMove == false) {
             definePlayer.setFreeze(true);
-        }
-    }
-
-    @Override
-    public void playerLeave(Player player) {
-        playerLeave(player.getUniqueId());
-
-        if (getUuidParticipating().size() < GameManager.getMinPlayers(getLobbyForGametype())) {
-
         }
     }
 }

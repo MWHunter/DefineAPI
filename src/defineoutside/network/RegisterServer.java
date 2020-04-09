@@ -21,7 +21,7 @@ public class RegisterServer {
                     try {
                         //MainAPI.getPlugin().getLogger().log(Level.WARNING, "Sending this server to the mainframe");
 
-                        Socket s = new Socket("10.128.0.4", 27469);
+                        Socket s = new Socket(MainAPI.hostName, 27469);
                         DataInputStream dis = new DataInputStream(s.getInputStream());
 
                         String msg = dis.readUTF();
@@ -34,7 +34,8 @@ public class RegisterServer {
                         }
 
                         ObjectOutputStream objectOutputStream = new ObjectOutputStream(s.getOutputStream());
-                        objectOutputStream.writeObject(new AddNonSubServer(internalServerIdentifier, InetAddress.getByName(getServer().getIp()), getServer().getPort()));
+                        objectOutputStream.writeObject(new AddNonSubServer(true, MainAPI.lobbyType.equalsIgnoreCase("lobby"),
+                                internalServerIdentifier, InetAddress.getByName(getServer().getIp()), getServer().getPort()));
 
                         s.close();
 

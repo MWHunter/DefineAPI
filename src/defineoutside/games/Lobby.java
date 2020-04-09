@@ -53,20 +53,13 @@ public class Lobby extends Game {
         setJoinServerLocation(new Location(Bukkit.getWorld("world"), 0, 61, 0));
     }
 
-    // TODO: This gets called twice for some reason.
     @Override
-    public void playerLeave(UUID player) {
+    public void playerLeave(DefinePlayer player) {
         uuidParticipating.remove(player);
     }
 
     @Override
-    public void playerLeave(Player player) {
-        playerLeave(player.getUniqueId());
-    }
-
-    @Override
-    public boolean checkEndByEliminations() {
-        return false;
+    public void checkEndByEliminations() {
     }
 
     @Override
@@ -80,19 +73,16 @@ public class Lobby extends Game {
     }
 
     @Override
-    public void playerJoin(UUID player) {
-        PlayerManager pm = new PlayerManager();
+    public void playerJoin(DefinePlayer dp) {
 
-        DefinePlayer dp = pm.getDefinePlayer(player);
-
-        uuidParticipating.add(player);
+        uuidParticipating.add(dp);
 
         dp.setPlayerDefineTeam(getBestTeam());
         dp.setKit(getSpawnKitName());
 
-        playerLoad(player);
+        playerLoad(dp);
 
-        setScoreBoard(Bukkit.getPlayer(player));
+        setScoreBoard(dp.getBukkitPlayer());
     }
 
     /*public static void setScoreBoard(Player player) {
@@ -142,27 +132,21 @@ public class Lobby extends Game {
     }*/
 
     @Override
-    public void playerLoad(UUID uuid) {
-        PlayerManager pm = new PlayerManager();
-
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
+    public void playerLoad(DefinePlayer definePlayer) {
 
         // This should be changed when this class becomes generic
         definePlayer.reset();
         definePlayer.setCanInfiniteRespawn(true);
         definePlayer.setInGameType(getGameType());
 
-        Bukkit.getPlayer(uuid).addPotionEffect(
-                new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, true, false));
+        definePlayer.getBukkitPlayer().addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 0, true, false));
 
-        playerRespawn(uuid, true, true);
+        playerRespawn(definePlayer, true, true);
     }
 
     @Override
-    public void playerRespawn(UUID uuid, boolean canMove, boolean kitSelector) {
-        PlayerManager pm = new PlayerManager();
-        Player bukkitPlayer = Bukkit.getPlayer(uuid);
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
+    public void playerRespawn(DefinePlayer definePlayer, boolean canMove, boolean kitSelector) {
+        Player bukkitPlayer = definePlayer.getBukkitPlayer();
 
         // This will null pointer if the player leaves the same tick as the game starts
         try {
@@ -181,18 +165,18 @@ public class Lobby extends Game {
 
             PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
                 if (result) {
-                    if (canMove == false) {
+                    if (!canMove) {
                         definePlayer.setFreeze(true);
                     }
                 } else {
                     bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
                     Matchmaking mm = new Matchmaking();
-                    mm.addPlayerToCentralQueue(uuid, "lobby");
+                    mm.addPlayerToCentralQueue(definePlayer, "lobby");
                 }
             });
         }
 
-        if (canMove == false) {
+        if (!canMove) {
             definePlayer.setFreeze(true);
         }
     }

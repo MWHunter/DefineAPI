@@ -2,9 +2,6 @@ package defineoutside.games;
 
 import defineoutside.creator.DefinePlayer;
 import defineoutside.creator.Game;
-import defineoutside.main.PlayerManager;
-
-import java.util.UUID;
 
 public class Duel extends Game {
     @Override
@@ -16,11 +13,9 @@ public class Duel extends Game {
     }
 
     @Override
-    public void playerLoad(UUID uuid) {
-        super.playerLoad(uuid);
+    public void playerLoad(DefinePlayer definePlayer) {
+        super.playerLoad(definePlayer);
 
-        PlayerManager pm = new PlayerManager();
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
         definePlayer.setCanInfiniteRespawn(false);
     }
 }

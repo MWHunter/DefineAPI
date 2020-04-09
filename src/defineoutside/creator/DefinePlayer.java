@@ -15,10 +15,12 @@ import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.util.Vector;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.UUID;
 
-public class DefinePlayer {
+public class DefinePlayer implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private DefineTeam playerDefineTeam;
     private String inGameType = "lobby";
@@ -125,14 +127,28 @@ public class DefinePlayer {
     }
 
     public void updateObjective(String objectiveName, String displayedName) {
-        Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
-        Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
+        try {
+            /*Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
+            Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
 
-        Integer priority = obj.getScore(internalToDisplayName.get(objectiveName)).getScore();
+            Integer priority = obj.getScore(internalToDisplayName.get(objectiveName)).getScore();
 
-        playerScoreboard.resetScores(internalToDisplayName.get(objectiveName));
+            playerScoreboard.resetScores(internalToDisplayName.get(objectiveName));
 
-        addObjective(objectiveName, displayedName, priority);
+            addObjective(objectiveName, displayedName, priority);*/
+
+            Scoreboard playerScoreboard = getBukkitPlayer().getScoreboard();
+            Objective obj = playerScoreboard.getObjective(DisplaySlot.SIDEBAR);
+
+            Integer priority = obj.getScore(internalToDisplayName.get(objectiveName)).getScore();
+
+            playerScoreboard.resetScores(internalToDisplayName.get(objectiveName));
+
+            addObjective(objectiveName, displayedName, priority);
+        } catch(IllegalArgumentException exception) {
+            //exception.printStackTrace();
+        }
+
     }
 
     public void removeObjective(String objectiveName) {
@@ -159,6 +175,14 @@ public class DefinePlayer {
         return playerUUID;
     }
 
+    public String getName() {
+        return getBukkitPlayer().getName();
+    }
+
+    public void sendMessage(String message) {
+        getBukkitPlayer().sendMessage(message);
+    }
+
     public Player getBukkitPlayer() {
         return Bukkit.getPlayer(playerUUID);
     }
@@ -173,7 +197,7 @@ public class DefinePlayer {
     }
 
     public void setPlayerDefineTeam(DefineTeam playerDefineTeam) {
-        playerDefineTeam.addPlayer(playerUUID);
+        playerDefineTeam.addPlayer(this);
         this.playerDefineTeam = playerDefineTeam;
     }
 

@@ -1,17 +1,18 @@
 package defineoutside.network;
 
+import defineoutside.creator.DefinePlayer;
+
 import java.io.Serializable;
-import java.util.UUID;
 
 public class QueueData implements Serializable {
-    UUID player;
+    DefinePlayer player;
     String server;
-    public QueueData(UUID player, String server) {
+    public QueueData(DefinePlayer player, String server) {
         this.player = player;
         this.server = server;
     }
 
-    public UUID getPlayer() {
+    public DefinePlayer getPlayer() {
         return player;
     }
 

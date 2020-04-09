@@ -46,6 +46,8 @@ public class PlayerQueue {
                         Thread.sleep(50);
 
                     } catch (Exception e) {
+                        e.printStackTrace();
+
                         MainAPI.getPlugin().getLogger().log(Level.WARNING, "Disconnected from the central server");
 
                         // Loop again in 10 seconds!

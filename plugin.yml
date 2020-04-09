@@ -6,17 +6,17 @@ api-version: 1.15
 depend: [ProtocolLib]
 commands:
   debugmg:
-    description: Debug
+    description: Pls no touch
   debugworld:
-    description: Debug
+    description: No touch this either
   whatgame:
-    description: Debug
+    description: WHERE AM I
   hub:
     description: Life is an illusion.
   lobby:
     description: Life is definitely an illusion
   leave:
-    description: If life is an illusion, is death an illusion?
+    description: Is death an illusion?
   reloadconfigs:
     description: Do not run this command
   setuuid:
@@ -28,8 +28,10 @@ commands:
   setgametype:
     description: Types are lobby, gamelobby, and bedwars
   setgamemode:
-    description: Finds a gamelobby and sets the gamemode
+    description: Sets the gamemode (you're welcome)
   getgamemode:
     description: What gamemode is this?
-  openinventory:
-    description: Did I forget to remove this?
+  whatteam:
+    description: What team is this?
+  shutdownforupdate:
+    description: Updates the server

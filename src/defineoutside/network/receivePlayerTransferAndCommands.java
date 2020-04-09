@@ -46,12 +46,12 @@ public class receivePlayerTransferAndCommands {
                             }
                         } catch (EOFException e) {
                             MainAPI.getPlugin().getLogger().log(Level.INFO, "EOFException thrown receivePlayerTransferAndCommands:43");
-                            Thread.sleep(50);
+                            break;
                         }
 
                     } catch (Exception e) {
 
-                        //e.printStackTrace();
+                        e.printStackTrace();
                         MainAPI.getPlugin().getLogger().log(Level.WARNING, "Disconnected from the central server");
 
                         // Loop again!

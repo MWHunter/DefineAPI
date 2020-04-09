@@ -258,7 +258,7 @@ public class ConfigManager {
         return new File(MainAPI.getPlugin().getDataFolder() + File.separator + "arenas" + File.separator + map);
     }
 
-    public ItemStack[] getKit(String kit) {
+    public static ItemStack[] getKit(String kit) {
 
         return listOfKits.get(kit);
     }

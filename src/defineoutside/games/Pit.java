@@ -2,9 +2,6 @@ package defineoutside.games;
 
 import defineoutside.creator.DefinePlayer;
 import defineoutside.creator.Game;
-import defineoutside.main.PlayerManager;
-
-import java.util.UUID;
 
 public class Pit extends Game {
     @Override
@@ -16,22 +13,17 @@ public class Pit extends Game {
     }
 
     @Override
-    public void playerLoad(UUID uuid) {
-        super.playerLoad(uuid);
-
-        PlayerManager pm = new PlayerManager();
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
+    public void playerLoad(DefinePlayer definePlayer) {
+        super.playerLoad(definePlayer);
 
         definePlayer.setCanInfiniteRespawn(true);
     }
 
     // Only end without players
     @Override
-    public boolean checkEndByEliminations() {
+    public void checkEndByEliminations() {
         if (getUuidParticipating().size() == 0) {
             end();
-            return true;
         }
-        return false;
     }
 }

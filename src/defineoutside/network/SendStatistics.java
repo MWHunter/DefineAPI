@@ -26,7 +26,7 @@ public class SendStatistics {
 
                         GameManager gm = new GameManager();
 
-                        NetworkInfo networkInfo = createConnectionToMainframe.connectToMainframe("192.168.1.196", 27469, MainAPI.getInternalServerIdentifier() + "#Statistics");
+                        NetworkInfo networkInfo = createConnectionToMainframe.connectToMainframe(MainAPI.hostName, 27469, MainAPI.getInternalServerIdentifier() + "#Statistics");
 
                         long usedMemory;
                         long maxMemory;

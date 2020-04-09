@@ -7,6 +7,8 @@ import org.bukkit.*;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.FileUtils;
 import org.bukkit.craftbukkit.libs.org.apache.commons.lang3.ArrayUtils;
 import org.bukkit.entity.Player;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
@@ -18,11 +20,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 
-public class Game {
+public class Game implements Listener {
     private int maxPlayers = 999;
-    private int teams = 2;
-    private int gameCountdown = 10;
-    private int gameCountdownDecrement = 5;
+    private int teams = 0;
+    public int gameCountdown = 10;
+    public int gameCountdownDecrement = 5;
     private int gameCountdownAlwaysAnnounce = 4;
     private int gameEndCountdown = 5;
     private int maxGameTime = 30 * 60;
@@ -61,11 +63,12 @@ public class Game {
 
     private boolean voidInstantKill = true;
 
-    private boolean allowPlayersToJoinNow = true;
+    public boolean allowPlayersToJoinNow = true;
     private boolean alwaysAllowPlayersJoin = false;
+    private boolean generateTeams = false;
 
-    private boolean isGameStarting = false;
-    private boolean canGameStart = true;
+    public boolean isGameStarting = false;
+    public boolean canGameStart = true;
     public boolean isGameEnding = false;
     private boolean hasStarted = false;
 
@@ -79,7 +82,7 @@ public class Game {
 
     SpawnReason[] allowedSpawnReasons = new SpawnReason[]{SpawnReason.CUSTOM, SpawnReason.SHEARED, SpawnReason.SHOULDER_ENTITY,
             SpawnReason.SLIME_SPLIT, SpawnReason.SILVERFISH_BLOCK, SpawnReason.SPAWNER_EGG};
-    String[] killMessageStrings = new String[]{"You rekt ", "You destroyed ", "You OwO'd ", "You stabbed ", "You misclicked on "};
+    public String[] killMessageStrings = new String[]{"You rekt ", "You destroyed ", "You OwO'd ", "You stabbed ", "You misclicked on "};
 
     // 16 ready teams in total
     public String[] teamNames = new String[]{"Red", "Blue", "Lime", "Yellow", "White", "Orange", "Magenta", "Light Blue", "Pink", "Gray", "Light Gray", "Cyan", "Purple", "Green", "Black", "Brown"};
@@ -93,8 +96,8 @@ public class Game {
             Color.OLIVE, Color.YELLOW, Color.MAROON, Color.GREEN, Color.BLACK, Color.NAVY};
     public ArrayList<Material> dyedItems = new ArrayList<>(Arrays.asList(Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS));
 
-    public ArrayList<UUID> uuidParticipating = new ArrayList<UUID>();
-    public ArrayList<UUID> uuidSpectating = new ArrayList<UUID>();
+    public ArrayList<DefinePlayer> uuidParticipating = new ArrayList<DefinePlayer>();
+    public ArrayList<DefinePlayer> uuidSpectating = new ArrayList<DefinePlayer>();
 
     public ArrayList<DefineTeam> uuidDefineTeams = new ArrayList<>();
 
@@ -104,7 +107,7 @@ public class Game {
 
     DefineWorld gameWorld = new DefineWorld();
 
-    Random random = new Random();
+    public Random random = new Random();
 
     public Location joinServerLocation = new Location(Bukkit.getWorld("world"), 0, 70, 0);
 
@@ -116,8 +119,29 @@ public class Game {
             Bukkit.getLogger().log(Level.SEVERE, gameUUID + " is chosen");
         }
 
+        if (!generateTeams) {
+            createTeams();
+        }
+
+
+        // TODO: Attempt to get world spawns
+        if (getWorldFolder() == null) {
+            setWorldFolder(new File("world"));
+        }
+
+        spawnItemList = ConfigManager.getRandomKit(gameType);
+
+        GameManager.registerGame(gameUUID, this);
+    }
+
+    public void createTeams() {
+        List<List<Location>> listOfListOfSpawns = ConfigManager.getListOfSpawns(getWorldFolder().getName());
+
         for (int i = 0; i < teams; i++) {
+            //Bukkit.broadcastMessage("Team amount is " + teams + " we are on " + i);
+
             DefineTeam defineTeam = new DefineTeam();
+
             for (String teamName : teamNames) {
                 boolean isUniqueName = true;
 
@@ -130,35 +154,17 @@ public class Game {
                 if (isUniqueName) {
                     defineTeam.setName(teamName);
 
-                    if (defineTeam != null) {
-                        defineTeam.setWoolType(teamWools[ArrayUtils.indexOf(teamNames, teamName)]);
-                        defineTeam.setChatColor(teamColors[ArrayUtils.indexOf(teamNames, teamName)]);
-                    }
+                    defineTeam.setWoolType(teamWools[ArrayUtils.indexOf(teamNames, teamName)]);
+                    defineTeam.setChatColor(teamColors[ArrayUtils.indexOf(teamNames, teamName)]);
 
                     break;
                 }
             }
 
+            defineTeam.setSpawns(listOfListOfSpawns.get(i));
+
             uuidDefineTeams.add(defineTeam);
         }
-
-        // TODO: Attempt to get world spawns
-        if (getWorldFolder() == null) {
-            setWorldFolder(new File("world"));
-        }
-
-        List<List<Location>> listOfListOfSpawns = ConfigManager.getListOfSpawns(getWorldFolder().getName());
-
-        for (int i = 0; i < teams; i++) {
-            DefineTeam itDefineTeam = uuidDefineTeams.get(i);
-
-            itDefineTeam.setSpawns(listOfListOfSpawns.get(i % listOfListOfSpawns.size()));
-        }
-
-        spawnItemList = ConfigManager.getRandomKit(gameType);
-
-        GameManager gm = new GameManager();
-        gm.registerGame(gameUUID, this);
     }
 
     // Also, this should not be run by a lobby, override this!
@@ -178,6 +184,7 @@ public class Game {
                         if (!isGameEnding && (count % gameCountdownDecrement == 0 || count <= getGameCountdownAlwaysAnnounce())) {
                             messageGamePlayers(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "This game will begin in " + ChatColor.RED + count + ChatColor.WHITE + " seconds");
                         } else if (isGameEnding) {
+                            messageGamePlayers(ChatColor.RED + "Start has been canceled because a player left the game");
                             cancel();
                         }
                     }
@@ -196,19 +203,15 @@ public class Game {
         setAllowPlayerShootProjectile(true);
         setAllowPlayerDamage(true);
 
-        for (UUID uuid : getUuidParticipating()) {
-            PlayerManager pm = new PlayerManager();
-            DefinePlayer dp = pm.getDefinePlayer(uuid);
-            ConfigManager cm = new ConfigManager();
-            Player player = Bukkit.getPlayer(uuid);
-            ItemTag it = new ItemTag();
+        for (DefinePlayer definePlayer : getUuidParticipating()) {
+            Player player = definePlayer.getBukkitPlayer();
 
             player.sendMessage(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "This game has begun. " + ChatColor.RED + "GLHF!");
 
-            playerLoad(uuid);
-            dp.setFreeze(false);
+            playerLoad(definePlayer);
+            definePlayer.setFreeze(false);
 
-            ItemStack[] array = cm.getKit(dp.getKit()).clone();
+            ItemStack[] array = ConfigManager.getKit(definePlayer.getKit()).clone();
 
             for (int i = 0; i < array.length; i++) {
                 int randomIndexToSwap = random.nextInt(array.length);
@@ -219,22 +222,20 @@ public class Game {
             }
 
             for (ItemStack items : array) {
-                if (!it.getTag(items, "Kit").equals("")) {
-                    dp.setKit(it.getTag(items, "Kit"));
+                if (!ItemTag.getTag(items, "Kit").equals("")) {
+                    definePlayer.setKit(ItemTag.getTag(items, "Kit"));
                     break;
                 }
             }
 
-            givePlayerKit(player, cm.getKit(dp.getKit()));
+            givePlayerKit(player, ConfigManager.getKit(definePlayer.getKit()));
         }
     }
 
-    public boolean checkEndByEliminations() {
+    public void checkEndByEliminations() {
 
-        PlayerManager pm = new PlayerManager();
-
-        if (isGameEnding == true) {
-            return false;
+        if (isGameEnding) {
+            return;
         }
 
         // avoid null pointers
@@ -242,25 +243,22 @@ public class Game {
             DefineTeam playerDefineTeam = null;
 
             // Logic for seeing if there are still multiple teams
-            for (UUID uuid : getUuidParticipating()) {
-                DefinePlayer dp = pm.getDefinePlayer(uuid);
+            for (DefinePlayer dp : getUuidParticipating()) {
                 if (dp.isAlive() || dp.playerDeathCanRespawn()) {
                     if (playerDefineTeam == null) {
                         playerDefineTeam = dp.getPlayerDefineTeam();
-                    } else if (!pm.getDefinePlayer(uuid).getPlayerDefineTeam().equals(playerDefineTeam)) {
-                        return false;
+                    } else if (!dp.getPlayerDefineTeam().equals(playerDefineTeam)) {
+                        return;
                     }
                 }
             }
         }
 
         doEndCountdown();
-        return true;
     }
 
     public void doEndCountdown() {
         if (!isGameEnding) {
-            // TODO: Make a player messaging method
             messageGamePlayers(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "This game will end in " + ChatColor.RED + gameEndCountdown + ChatColor.WHITE + " seconds");
 
             isGameEnding = true;
@@ -277,19 +275,20 @@ public class Game {
 
     // Find a better game for everyone, kick everyone out, and delete this game.
     public void end() {
-        GameManager gm = new GameManager();
 
         // Garbage collection takes care of this current object once this is called
         // RIP game object :(
-        gm.deleteWorld(gameUUID);
-        gm.deleteGame(gameUUID);
+        GameManager.deleteWorld(gameUUID);
+        GameManager.deleteGame(gameUUID);
+
+        HandlerList.unregisterAll(this);
 
         // Find a gamelobby for players to join
-        for (Game game : gm.getGamesHashMap().values()) {
+        for (Game game : GameManager.getGamesHashMap().values()) {
             if (game instanceof GameLobby) {
                 ((GameLobby) game).setLobbyForGametype(getGameType());
                 game.setCanGameStart(true);
-                gm.transferPlayers(getUuidParticipating(), game);
+                GameManager.transferPlayers(getUuidParticipating(), game);
 
                 break;
             }
@@ -315,37 +314,34 @@ public class Game {
         }.runTaskLaterAsynchronously(MainAPI.getPlugin(), 1200L);
     }
 
-    public void playerLoad(UUID uuid) {
-        DefinePlayer definePlayer = PlayerManager.getDefinePlayer(uuid);
-
+    public void playerLoad(DefinePlayer definePlayer) {
         // This should be changed when this class becomes generic
         definePlayer.reset();
         definePlayer.setCanInfiniteRespawn(false);
         definePlayer.setInGameType(gameType);
         definePlayer.setKit(getSpawnKitName());
 
-        playerRespawn(uuid, allowPlayerMoveOnJoin, !hasStarted);
+        playerRespawn(definePlayer, allowPlayerMoveOnJoin, !hasStarted);
     }
 
-    public void playerRespawn(UUID uuid) {
-        playerRespawn(uuid, true);
+    public void playerRespawn(DefinePlayer definePlayer) {
+        playerRespawn(definePlayer, true);
     }
 
-    public void playerRespawn(UUID uuid, boolean canMove) {
-        playerRespawn(uuid, canMove, false);
+    public void playerRespawn(DefinePlayer definePlayer, boolean canMove) {
+        playerRespawn(definePlayer, canMove, false);
     }
 
-    public void playerRespawn(UUID uuid, boolean canMove, boolean kitSelector) {
-        PlayerManager pm = new PlayerManager();
+    public void playerRespawn(DefinePlayer definePlayer, boolean canMove, boolean kitSelector) {
         ConfigManager cm = new ConfigManager();
-        Player bukkitPlayer = Bukkit.getPlayer(uuid);
-        DefinePlayer definePlayer = pm.getDefinePlayer(uuid);
+        Player bukkitPlayer = definePlayer.getBukkitPlayer();
 
         // This will null pointer if the player leaves the same tick as the game starts
         try {
             bukkitPlayer.setGameMode(GameMode.SURVIVAL);
             bukkitPlayer.setHealth(20);
             bukkitPlayer.getActivePotionEffects().clear();
+            bukkitPlayer.setExp(0);
 
             bukkitPlayer.setAllowFlight(allowPlayerDoubleJump);
         } catch (NullPointerException e) {
@@ -361,31 +357,34 @@ public class Game {
 
         givePlayerKit(bukkitPlayer, giveItems);
 
-        // Check if the player has already been teleported to a valid spawn position
-        Location teleportLocation = definePlayer.getPlayerDefineTeam().getNextSpawn();
-        // Config is loaded before we have the world ready, so we must set world
-        teleportLocation.setWorld(getGameWorld().getBukkitWorld());
+        if (!definePlayer.isFrozen()) {
+            // Check if the player has already been teleported to a valid spawn position
+            Location teleportLocation = definePlayer.getPlayerDefineTeam().getNextSpawn();
+            // Config is loaded before we have the world ready, so we must set world
+            teleportLocation.setWorld(getGameWorld().getBukkitWorld());
 
-        // Set the player to be facing towards 0,0 since it looks nicer (pun)
-        Vector lookDirection = new Vector();
-        lookDirection.setX(teleportLocation.getX() * -1);
-        lookDirection.setY(0);
-        lookDirection.setZ(teleportLocation.getZ() * -1);
+            // Set the player to be facing towards 0,0 since it looks nicer (pun)
+            Vector lookDirection = new Vector();
+            lookDirection.setX(teleportLocation.getX() * -1);
+            lookDirection.setY(0);
+            lookDirection.setZ(teleportLocation.getZ() * -1);
 
-        teleportLocation.setDirection(lookDirection);
+            teleportLocation.setDirection(lookDirection);
 
-        PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
-            if (result) {
-                if (canMove == false) {
-                    definePlayer.setFreeze(true);
+            PaperLib.teleportAsync(bukkitPlayer, teleportLocation).thenAccept(result -> {
+                if (result) {
+                    if (canMove == false) {
+                        definePlayer.setFreeze(true);
+                    }
+                } else {
+                    bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
+                    Matchmaking mm = new Matchmaking();
+                    mm.addPlayerToCentralQueue(definePlayer, "lobby");
                 }
-            } else {
-                bukkitPlayer.sendMessage(ChatColor.RED + "Something went wrong while teleporting you to the game.  Recovering by sending you back to the hub");
-                Matchmaking mm = new Matchmaking();
-                mm.addPlayerToCentralQueue(uuid, "lobby");
-            }
-        });
-        //}
+            });
+        } else {
+            definePlayer.setFreeze(false);
+        }
     }
 
     public void givePlayerKit(Player player, ItemStack[] giveItems) {
@@ -404,50 +403,40 @@ public class Game {
         }
     }
 
-    public void playerJoin(Player player) {
-        playerJoin(player.getUniqueId());
-    }
+    public void playerJoin(DefinePlayer definePlayer) {
 
-    // TODO: Add a check if we still have enough players
-    public void playerLeave(Player player) {
+        String joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + definePlayer.getName() + ChatColor.WHITE + " has joined the game";
 
-        playerLeave(player.getUniqueId());
-    }
+        // Null means no game lobby set this
+        if (definePlayer.getPlayerDefineTeam() == null) {
+            definePlayer.setPlayerDefineTeam(getBestTeam());
 
-    public void playerJoin(UUID player) {
-        PlayerManager pm = new PlayerManager();
+            DefineTeam joinerDefineTeam = definePlayer.getPlayerDefineTeam();
 
-        uuidParticipating.add(player);
+            joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + definePlayer.getName() + ChatColor.WHITE + " has joined the " +
+                    joinerDefineTeam.getChatColor() + joinerDefineTeam.getName() + ChatColor.WHITE + " team";
 
-        String joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has joined the game";
-
-        DefinePlayer dp = pm.getDefinePlayer(player);
-        dp.setPlayerDefineTeam(getBestTeam());
-        dp.setKit(spawnKitName);
-
-        DefineTeam joinerDefineTeam = pm.getDefinePlayer(player).getPlayerDefineTeam();
-
-        if (joinerDefineTeam != null) {
-            joinMessage = ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has joined the " + joinerDefineTeam.getChatColor() + joinerDefineTeam.getName() + ChatColor.WHITE
-                    + " team";
+            messageGamePlayers(joinMessage);
         }
 
-        messageGamePlayers(joinMessage);
-        setScoreBoard(Bukkit.getPlayer(player));
-        playerLoad(player);
+        definePlayer.setKit(spawnKitName);
+
+        uuidParticipating.add(definePlayer);
+
+        setScoreBoard(definePlayer.getBukkitPlayer());
+        playerLoad(definePlayer);
 
         attemptStart();
     }
 
-    public void playerLeave(UUID player) {
+    public void playerLeave(DefinePlayer player) {
         uuidParticipating.remove(player);
 
-        for (UUID playerUUID : getUuidParticipating()) {
-            Bukkit.getPlayer(playerUUID).sendMessage(ChatColor.GRAY + "Game > " + ChatColor.RED + Bukkit.getPlayer(player).getName() + ChatColor.WHITE + " has left the game");
+        for (DefinePlayer definePlayer : getUuidParticipating()) {
+            definePlayer.getBukkitPlayer().sendMessage(ChatColor.GRAY + "Game > " + ChatColor.RED + player.getName() + ChatColor.WHITE + " has left the game");
         }
 
-        PlayerManager pm = new PlayerManager();
-        pm.getDefinePlayer(player).getPlayerDefineTeam().removePlayer(player);
+        player.getPlayerDefineTeam().removePlayer(player);
 
         checkEndByEliminations();
     }
@@ -480,7 +469,7 @@ public class Game {
 
                         player.sendMessage(ChatColor.AQUA + "Respawning in " + ChatColor.WHITE + --currentSpawnTimer + ChatColor.AQUA + " seconds.");
                         if (currentSpawnTimer <= 0) {
-                            playerRespawn(definePlayer.getPlayerUUID());
+                            playerRespawn(definePlayer);
                             this.cancel();
                         }
                     }
@@ -510,8 +499,8 @@ public class Game {
     }
 
     public void messageGamePlayers(String string) {
-        for (UUID uuid : getUuidParticipating()) {
-            Bukkit.getPlayer(uuid).sendMessage(string);
+        for (DefinePlayer definePlayer : getUuidParticipating()) {
+            definePlayer.getBukkitPlayer().sendMessage(string);
         }
     }
 
@@ -696,7 +685,7 @@ public class Game {
         this.allowPlayersToJoinNow = allowPlayersToJoinNow;
     }
 
-    public ArrayList<UUID> getUuidParticipating() {
+    public ArrayList<DefinePlayer> getUuidParticipating() {
         return uuidParticipating;
     }
 
@@ -847,5 +836,29 @@ public class Game {
 
     public void setAllowItemDrop(boolean allowItemDrop) {
         this.allowItemDrop = allowItemDrop;
+    }
+
+    public int getTeams() {
+        return teams;
+    }
+
+    public void setTeams(int teams) {
+        this.teams = teams;
+    }
+
+    public boolean isGenerateTeams() {
+        return generateTeams;
+    }
+
+    public void setGenerateTeams(boolean generateTeams) {
+        this.generateTeams = generateTeams;
+    }
+
+    public ArrayList<DefineTeam> getUuidDefineTeams() {
+        return uuidDefineTeams;
+    }
+
+    public void setUuidDefineTeams(ArrayList<DefineTeam> uuidDefineTeams) {
+        this.uuidDefineTeams = uuidDefineTeams;
     }
 }

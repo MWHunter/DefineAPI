@@ -4,6 +4,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import defineoutside.creator.DefinePlayer;
+import defineoutside.creator.DefineTeam;
 import defineoutside.creator.Game;
 import defineoutside.games.GameLobby;
 import defineoutside.games.Lobby;
@@ -32,6 +34,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -44,9 +47,13 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
     //private ProtocolManager protocolManager;
     public static String lobbyType;
 
+    public static String hostName = "127.0.0.1";
+
     public static int globalPlayers = 0;
 
     public boolean changedLobbyGamemode = false;
+
+    public Random random;
 
     public void onEnable() {
         plugin = this;
@@ -194,6 +201,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
+
         if (label.equalsIgnoreCase("debugmg")) {
             GameManager gm = new GameManager();
 
@@ -210,31 +218,38 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
             }
         }
 
-        if (label.equalsIgnoreCase("whatgame")) {
-            GameManager gm = new GameManager();
-            PlayerManager pm = new PlayerManager();
+        if (sender instanceof Player && label.equalsIgnoreCase("whatgame")) {
+            DefinePlayer definePlayer = PlayerManager.getDefinePlayer(((Player) sender).getUniqueId());
 
-            for (Map.Entry game : gm.getGamesHashMap().entrySet()) {
-                if (gm.getGamesHashMap().get(game.getKey()).getUuidParticipating().contains(Bukkit.getPlayer(sender.getName()).getUniqueId())) {
-                    sender.sendMessage("You are in game: " + game.getValue().toString());
-                    sender.sendMessage("Are you alive? " + pm.getDefinePlayer(((Player) sender).getUniqueId()).isAlive());
-                    sender.sendMessage("You are on team " + pm.getDefinePlayer((Player) sender).getPlayerDefineTeam().getName());
+            for (Map.Entry<UUID, Game> entry : GameManager.getGamesHashMap().entrySet()) {
+                if (entry.getValue().getUuidParticipating().contains(PlayerManager.getDefinePlayer(((Player) sender).getUniqueId()))) {
+                    sender.sendMessage("You are in game: " + entry.getValue().toString());
+                    sender.sendMessage("Are you alive? " + definePlayer.isAlive());
+                    sender.sendMessage("You are on team " + definePlayer.getPlayerDefineTeam().toString());
                 }
             }
 
             sender.sendMessage(ChatColor.RED + "Debug tool.  Abuse or spam will lead to a temporary ban.");
         }
 
+        if (label.equalsIgnoreCase("whatteam")) {
+            for (Game game : GameManager.getGamesHashMap().values()) {
+                for (DefineTeam defineTeam : game.getUuidDefineTeams()) {
+                    sender.sendMessage(defineTeam.getUuidInTeam().toString() + " is team name " + defineTeam.getName());
+                }
+            }
+        }
+
         if (label.equalsIgnoreCase("leave") || label.equalsIgnoreCase("hub") || label.equalsIgnoreCase("lobby")) {
             Matchmaking mm = new Matchmaking();
-            mm.addPlayerToCentralQueue(((Player) sender).getUniqueId(), "lobby");
+            mm.addPlayerToCentralQueue(PlayerManager.getDefinePlayer(((Player) sender).getUniqueId()), "lobby");
         }
 
         if (label.equalsIgnoreCase("joinqueue")) {
             MainAPI.getPlugin().getServer().getScheduler().runTaskAsynchronously(MainAPI.getPlugin(), () -> {
                 if (args.length != 0) {
                     Matchmaking mm = new Matchmaking();
-                    mm.addPlayerToCentralQueue(((Player) sender).getUniqueId(), args[0]);
+                    mm.addPlayerToCentralQueue(PlayerManager.getDefinePlayer(((Player) sender).getUniqueId()), args[0]);
                 }
             });
         }
@@ -254,17 +269,14 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
 
         if (label.equalsIgnoreCase("setgametype")) {
             if (sender.hasPermission("DefineAPI.manage") && args.length != 0) {
-                Bukkit.getScheduler().runTaskAsynchronously(this, new Runnable() {
-                    @Override
-                    public void run() {
-                        File file = new File(getPlugin().getDataFolder() + File.separator + "main.yml");
-                        FileConfiguration mainConfig = YamlConfiguration.loadConfiguration(file);
-                        mainConfig.set("Mainworld", args[0]);
-                        try {
-                            mainConfig.save(file);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    File file = new File(getPlugin().getDataFolder() + File.separator + "main.yml");
+                    FileConfiguration mainConfig = YamlConfiguration.loadConfiguration(file);
+                    mainConfig.set("Mainworld", args[0]);
+                    try {
+                        mainConfig.save(file);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 });
             }
@@ -274,7 +286,7 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
         if (label.equalsIgnoreCase("setgamemode")) {
             if (sender.hasPermission("DefineAPI.manage") && args.length != 0) {
                 for (Game iteratedGame : GameManager.getGamesHashMap().values()) {
-                    if (iteratedGame instanceof GameLobby && ((GameLobby) iteratedGame).getLobbyForGametype().equalsIgnoreCase("")) {
+                    if (iteratedGame instanceof GameLobby && iteratedGame.getUuidParticipating().size() == 0) {
                         changedLobbyGamemode = true;
 
                         ((GameLobby) iteratedGame).setLobbyForGametype(args[0]);
@@ -295,8 +307,18 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
             }
         }
 
-        if (label.equalsIgnoreCase("openinventory")) {
-            ActionParser.doAction((Player) sender, "inventory", args[0]);
+        // TODO: Force players out to an updated server without them knowing
+        if (label.equalsIgnoreCase("shutdownforupdate")) {
+            if (sender.hasPermission("DefineAPI.shutdown")) {
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (Bukkit.getServer().getOnlinePlayers().size() == 0) {
+                            Bukkit.shutdown();
+                        }
+                    }
+                }.runTaskTimer(plugin, 100L, 100L/*(long)random.nextInt(18000), /*18000*/); // Try to balance the load of updating over 15 minutes
+            }
         }
 
         return false;
@@ -335,13 +357,13 @@ public class MainAPI extends JavaPlugin implements Listener, PluginMessageListen
 
                     if (internalServerIdentifier != null) {
                         SendStatistics sendStatistics = new SendStatistics();
-                        sendStatistics.startNetworkMonitoring("10.128.0.4");
+                        sendStatistics.startNetworkMonitoring(hostName);
 
                         PlayerQueue playerQueue = new PlayerQueue();
-                        playerQueue.ConnectToMainframe("10.128.0.4");
+                        playerQueue.ConnectToMainframe(hostName);
 
                         receivePlayerTransferAndCommands playerTransferAndCommands = new receivePlayerTransferAndCommands();
-                        playerTransferAndCommands.ConnectToMainframe("10.128.0.4");
+                        playerTransferAndCommands.ConnectToMainframe(hostName);
 
                         RegisterServer.sendHostname();
 

@@ -4,13 +4,16 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-public class DefineTeam {
-    public ArrayList<UUID> uuidInTeam = new ArrayList<>();
+public class DefineTeam implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    public ArrayList<DefinePlayer> uuidInTeam = new ArrayList<>();
     public boolean allowTeamDamage = false;
     public String name = UUID.randomUUID().toString();
     public Material woolType = Material.WHITE_WOOL;
@@ -21,11 +24,11 @@ public class DefineTeam {
 
     int spawnIterator = 0;
 
-    public void addPlayer(UUID uuid) {
+    public void addPlayer(DefinePlayer uuid) {
         uuidInTeam.add(uuid);
     }
 
-    public void removePlayer(UUID uuid) {
+    public void removePlayer(DefinePlayer uuid) {
         uuidInTeam.remove(uuid);
     }
 
@@ -33,16 +36,12 @@ public class DefineTeam {
         return uuidInTeam.size();
     }
 
-    public boolean isPlayerOnTeam(UUID uuid) {
+    public boolean isPlayerOnTeam(DefinePlayer uuid) {
         return uuidInTeam.contains(uuid);
     }
 
-    public ArrayList<UUID> getUuidInTeam() {
+    public ArrayList<DefinePlayer> getUuidInTeam() {
         return uuidInTeam;
-    }
-
-    public void setUuidInTeam(ArrayList<UUID> uuidInTeam) {
-        this.uuidInTeam = uuidInTeam;
     }
 
     public boolean isAllowTeamDamage() {

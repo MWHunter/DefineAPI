@@ -1,18 +1,19 @@
 package defineoutside.main;
 
+import defineoutside.creator.DefinePlayer;
 import defineoutside.creator.Game;
-import defineoutside.games.GameLobby;
 import defineoutside.network.PlayerQueue;
 import defineoutside.network.QueueData;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class Matchmaking {
-    private static HashMap<UUID, String> playersLookingForGameType = new HashMap<>();
+    private static HashMap<DefinePlayer, String> playersLookingForGameType = new HashMap<>();
 
-    public void addPlayerToCentralQueue(UUID playerUUID, String gameType) {
+    public void addPlayerToCentralQueue(DefinePlayer playerUUID, String gameType) {
 
         if (playersLookingForGameType.get(playerUUID) == null || !playersLookingForGameType.get(playerUUID).equals(gameType)) {
             QueueData sendQueueInfo = new QueueData(playerUUID, gameType);
@@ -20,43 +21,41 @@ public class Matchmaking {
             try {
                 playerQueue.addToQueue(sendQueueInfo);
             } catch (Exception e) {
-                Bukkit.getPlayer(playerUUID).sendMessage(ChatColor.RED + "Queue > Unable to contact the central queue system (is it on fire?)");
+                playerUUID.getBukkitPlayer().sendMessage(ChatColor.RED + "Queue > Unable to contact the central queue system (is it on fire?)");
             }
         }
     }
 
-    public void addPlayer(UUID playerUUID, String gameType) {
+    public void addPlayer(DefinePlayer playerUUID, String gameType) {
         playersLookingForGameType.put(playerUUID, gameType);
         searchForGames();
     }
 
     public void searchForGames() {
-        PlayerManager pm = new PlayerManager();
-        GameManager gm = new GameManager();
 
-        for (UUID playerUUID : playersLookingForGameType.keySet()) {
-            String firstPlayerGame = playersLookingForGameType.get(playerUUID);
-            List<UUID> playersInSameQueue = new ArrayList<>();
+        for (DefinePlayer definePlayer : playersLookingForGameType.keySet()) {
+            String firstPlayerGame = playersLookingForGameType.get(definePlayer);
+            List<DefinePlayer> playersInSameQueue = new ArrayList<>();
 
             if (firstPlayerGame != null) {
-                for (UUID playersAlsoInQueue : playersLookingForGameType.keySet()) {
+                for (DefinePlayer playersAlsoInQueue : playersLookingForGameType.keySet()) {
                     String otherPlayer = playersLookingForGameType.get(playersAlsoInQueue);
-                    if (otherPlayer.equals(firstPlayerGame) && !pm.getDefinePlayer(playerUUID).isLockInGame()) {
+                    if (otherPlayer.equals(firstPlayerGame) && !definePlayer.isLockInGame()) {
                         playersInSameQueue.add(playersAlsoInQueue);
                     }
                 }
             }
 
             if (playersInSameQueue.size() > 0) {
-                for (Game game : gm.getGamesHashMap().values()) {
+                for (Game game : GameManager.getGamesHashMap().values()) {
                     if (game.getGameType().equals(firstPlayerGame)) {
 
                         // Remove people from the queue
-                        for (UUID uuid : playersInSameQueue) {
+                        for (DefinePlayer uuid : playersInSameQueue) {
                             removePlayer(uuid);
                         }
 
-                        gm.transferPlayers(playersInSameQueue, game);
+                        GameManager.transferPlayers(playersInSameQueue, game);
                         break;
                     }
                 }
@@ -64,7 +63,7 @@ public class Matchmaking {
         }
     }
 
-    public void removePlayer(UUID uuid) {
+    public void removePlayer(DefinePlayer uuid) {
         playersLookingForGameType.remove(uuid);
     }
 }

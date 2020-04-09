@@ -40,9 +40,9 @@ public class Bedwars extends Game implements Listener {
     List<Location> nuggetLocations = new ArrayList<>();
     List<Location> shopLocations = new ArrayList<>();
 
-    HashMap<UUID, Integer> playersAndKills = new HashMap<>();
-    HashMap<UUID, Integer> playersAndFinalKills = new HashMap<>();
-    HashMap<UUID, Integer> playersAndBedEliminations = new HashMap<>();
+    HashMap<DefinePlayer, Integer> playersAndKills = new HashMap<>();
+    HashMap<DefinePlayer, Integer> playersAndFinalKills = new HashMap<>();
+    HashMap<DefinePlayer, Integer> playersAndBedEliminations = new HashMap<>();
 
     HashMap<String, Double> teamGoldProduction = new HashMap<>();
 
@@ -98,6 +98,7 @@ public class Bedwars extends Game implements Listener {
 
         // Bed spawning logic
         for (DefineTeam team : uuidDefineTeams) {
+            //Bukkit.broadcastMessage(uuidDefineTeams.toString());
             Location bed = bedLocations.get(ArrayUtils.indexOf(teamNames, team.getName()));
 
             int bedInt = bedLocations.indexOf(bed);
@@ -168,7 +169,6 @@ public class Bedwars extends Game implements Listener {
             villager.setCustomName("Right click for shop");
         }
 
-        // TODO: Catalyst and gold spawning logic
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -178,8 +178,7 @@ public class Bedwars extends Game implements Listener {
                     cancel();
                 }
 
-                for (UUID uuid : getUuidParticipating()) {
-                    DefinePlayer inspectedPlayer = PlayerManager.getDefinePlayer(uuid);
+                for (DefinePlayer inspectedPlayer : getUuidParticipating()) {
 
                     inspectedPlayer.setMoney(inspectedPlayer.getMoney() + teamGoldProduction.get(inspectedPlayer.getPlayerDefineTeam().getName()));
                 }
@@ -247,13 +246,13 @@ public class Bedwars extends Game implements Listener {
                         // Calculations for what teams are alive
                         for (DefineTeam team : uuidDefineTeams) {
                             if (team.getUuidInTeam().size() > 0) {
-                                if (PlayerManager.getDefinePlayer(team.getUuidInTeam().get(0)).getCanInfiniteRespawn()) {
+                                if (team.getUuidInTeam().get(0).getCanInfiniteRespawn()) {
                                     definePlayer.updateObjective(team.getName(), ChatColor.GREEN + "✔ " + teamColors[ArrayUtils.indexOf(teamNames, team.getName())] + team.getName());
 
                                 } else {
                                     Integer alivePlayers = 0;
-                                    for (UUID playerUUID : team.getUuidInTeam()) {
-                                        if (PlayerManager.getDefinePlayer(playerUUID).isAlive()) {
+                                    for (DefinePlayer definePlayer1 : team.getUuidInTeam()) {
+                                        if (definePlayer1.isAlive()) {
                                             alivePlayers++;
                                         }
                                     }
@@ -275,9 +274,9 @@ public class Bedwars extends Game implements Listener {
                             definePlayer.updateObjective("objective", ChatColor.WHITE + "Catalyst in: " + (catalystSpawnInterval - (gameTime % catalystSpawnInterval) - 1));
                         }
                         definePlayer.updateObjective("gold", ChatColor.WHITE + "Gold: " + ChatColor.GOLD + (int) definePlayer.getMoney());
-                        definePlayer.updateObjective("kills", ChatColor.WHITE + "Kills: " + ChatColor.AQUA + playersAndKills.get(player.getUniqueId()));
-                        definePlayer.updateObjective("finalkills", ChatColor.WHITE + "Final Kills: " + ChatColor.AQUA + playersAndFinalKills.get(player.getUniqueId()));
-                        definePlayer.updateObjective("beds", ChatColor.WHITE + "Broken Beds: " + ChatColor.AQUA + playersAndBedEliminations.get(player.getUniqueId()));
+                        definePlayer.updateObjective("kills", ChatColor.WHITE + "Kills: " + ChatColor.AQUA + playersAndKills.get(definePlayer));
+                        definePlayer.updateObjective("finalkills", ChatColor.WHITE + "Final Kills: " + ChatColor.AQUA + playersAndFinalKills.get(definePlayer));
+                        definePlayer.updateObjective("beds", ChatColor.WHITE + "Broken Beds: " + ChatColor.AQUA + playersAndBedEliminations.get(definePlayer));
                     } else {
                         cancel();
                     }
@@ -290,16 +289,61 @@ public class Bedwars extends Game implements Listener {
     }
 
     @Override
-    public void playerLoad(UUID playerUUID) {
-        super.playerLoad(playerUUID);
+    public void playerLoad(DefinePlayer definePlayer) {
+        super.playerLoad(definePlayer);
 
-        DefinePlayer definePlayer = PlayerManager.getDefinePlayer(playerUUID);
         definePlayer.setCanInfiniteRespawn(true);
         definePlayer.setMoney(500);
 
-        playersAndKills.put(playerUUID, 0);
-        playersAndFinalKills.put(playerUUID, 0);
-        playersAndBedEliminations.put(playerUUID, 0);
+        playersAndKills.put(definePlayer, 0);
+        playersAndFinalKills.put(definePlayer, 0);
+        playersAndBedEliminations.put(definePlayer, 0);
+    }
+
+    @Override
+    public void sendKillMessage(Player playerKilled, Player killer) {
+        DefinePlayer defineKilled = PlayerManager.getDefinePlayer(playerKilled.getUniqueId());
+        DefinePlayer defineKiller = PlayerManager.getDefinePlayer(killer.getUniqueId());
+
+        if (defineKilled.getCanInfiniteRespawn()) { // Not final kill
+            String killMessage = ChatColor.GRAY + "Death > " + ChatColor.WHITE + killMessageStrings[random.nextInt(killMessageStrings.length)] + ChatColor.RED + playerKilled.getName();
+
+            playerKilled.sendMessage(ChatColor.GRAY + "Death > " + ChatColor.WHITE + "You were killed by " + ChatColor.RED + killer.getName() + ChatColor.WHITE +
+                    " with " + ChatColor.RED + (int) Math.round(killer.getHealth() * 10d) / 20d + "♥" + ChatColor.WHITE + " remaining");
+            playerKilled.sendMessage(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "You have lost " + ChatColor.GOLD + (int)(defineKilled.getMoney() * 0.2) + ChatColor.WHITE + " gold");
+            killer.sendMessage(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "You have stolen " + ChatColor.GOLD + (int)(defineKilled.getMoney() * 0.2) + ChatColor.WHITE + " gold");
+
+            // Don't tilt the killed player by saying they got rekt
+            for (DefinePlayer messagePlayer : uuidParticipating) {
+                if (!messagePlayer.getBukkitPlayer().equals(playerKilled)) {
+                    messagePlayer.getBukkitPlayer().sendMessage(killMessage);
+                }
+            }
+
+            defineKiller.setMoney(defineKilled.getMoney() * 0.2 + defineKiller.getMoney());
+            defineKilled.setMoney(defineKilled.getMoney() * 0.8);
+
+        } else { // Final kill
+            String killMessage = ChatColor.GRAY + "Death > " + ChatColor.WHITE + killMessageStrings[random.nextInt(killMessageStrings.length)] + ChatColor.RED + playerKilled.getName()
+                    + ChatColor.WHITE + " as a final kill";
+
+            playerKilled.sendMessage(ChatColor.GRAY + "Death > " + ChatColor.WHITE + "You were final killed by " + ChatColor.RED + killer.getName() + ChatColor.WHITE +
+                    " with " + ChatColor.RED + (int) Math.round(killer.getHealth() * 10d) / 20d + "♥" + ChatColor.WHITE + " remaining");
+            playerKilled.sendMessage(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "You have lost " + ChatColor.GOLD + (int)(defineKilled.getMoney()) + ChatColor.WHITE + " gold");
+            killer.sendMessage(ChatColor.GRAY + "Game > " + ChatColor.WHITE + "You have stolen " + ChatColor.GOLD + (int)(defineKilled.getMoney()) + ChatColor.WHITE + " gold");
+
+            // Don't tilt the killed player by saying they got rekt
+            for (DefinePlayer messagePlayer : uuidParticipating) {
+                if (!messagePlayer.getBukkitPlayer().equals(playerKilled)) {
+                    messagePlayer.getBukkitPlayer().sendMessage(killMessage);
+                }
+            }
+
+            defineKiller.setMoney(defineKilled.getMoney() + defineKiller.getMoney());
+            defineKilled.setMoney(0);
+        }
+
+
     }
 
     // Code for setting what a bed is
@@ -324,23 +368,22 @@ public class Bedwars extends Game implements Listener {
 
     @EventHandler
     public void onBlockBreakEvent(BlockBreakEvent event) {
-        GameManager gm = new GameManager();
         if (event.getBlock().getType().toString().contains("BED")) {
             Location brokenBlock = event.getBlock().getLocation();
             Location closestBed = closestAxisToLocation(event.getBlock().getLocation(), bedLocations);
             if (closestBed.getX() - brokenBlock.getX() < 2 && closestBed.getY() == brokenBlock.getY() && closestBed.getZ() - brokenBlock.getZ() < 2) {
-                //bedLocations.remove(closestBed);
-                Integer position = bedLocations.indexOf(closestBed);
+                int position = bedLocations.indexOf(closestBed);
                 String teamName = teamNames[position];
 
                 for (DefineTeam teams : uuidDefineTeams) {
                     if (teams.getName().equals(teamName)) {
-                        if (!teams.getUuidInTeam().contains(event.getPlayer().getUniqueId())) {
-                            for (UUID uuid : teams.getUuidInTeam()) {
-                                PlayerManager.getDefinePlayer(uuid).setCanInfiniteRespawn(false);
+                        if (!teams.getUuidInTeam().contains(PlayerManager.getDefinePlayer(event.getPlayer().getUniqueId()))) {
+                            for (DefinePlayer definePlayer : teams.getUuidInTeam()) {
+                                definePlayer.setCanInfiniteRespawn(false);
+                                definePlayer.sendMessage(ChatColor.RED + "You can no longer respawn");
                             }
 
-                            event.getPlayer().sendMessage(ChatColor.WHITE + "You broke " + teamColors[position] + teamName + ChatColor.WHITE + "'s bed");
+                            messageGamePlayers(ChatColor.WHITE + event.getPlayer().getName() + " broke " + teamColors[position] + teamName + ChatColor.WHITE + "'s bed");
                         } else {
                             event.getPlayer().sendMessage(ChatColor.RED + "You cannot break your own bed");
                             event.setCancelled(true);
@@ -371,7 +414,7 @@ public class Bedwars extends Game implements Listener {
                 Player player = event.getPlayer();
                 DefinePlayer definePlayer = PlayerManager.getDefinePlayer(player.getUniqueId());
 
-                ActionParser.doAction(player, "inventory", "bedwars.yml");
+                ActionParser.doAction(definePlayer, "inventory", "bedwars.yml");
                 event.setCancelled(true);
 
                 if (player.getInventory().contains(Material.GOLD_INGOT)) {
@@ -408,12 +451,6 @@ public class Bedwars extends Game implements Listener {
                     teamGoldProduction.put(teamName, teamGoldIncreased / 100D);
                 }
             }
-        }
-    }
-
-    public void checkObjectiveEnd() {
-        if (objectives.size() <= 0) {
-            doEndCountdown();
         }
     }
 }

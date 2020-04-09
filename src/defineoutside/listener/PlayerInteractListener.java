@@ -22,17 +22,14 @@ public class PlayerInteractListener implements Listener {
     public void onPlayerInteractEvent(PlayerInteractEvent event) {
         // For simplicity, check if player clicked with main hand, not off hand
         if (event.getHand() != null && event.getHand().equals(EquipmentSlot.HAND)) {
-            PlayerManager pm = new PlayerManager();
 
             // Allow players to right click with items that do special things
             if (event.getAction().equals(Action.RIGHT_CLICK_AIR) || event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
                 ItemStack itemHeld = event.getPlayer().getInventory().getItemInMainHand();
                 if (itemHeld.hasItemMeta()) {
-                    ItemTag it = new ItemTag();
-                    ActionParser ap = new ActionParser();
 
-                    String action = it.getTag(itemHeld, "DefineAPI");
-                    ap.doAction(event.getPlayer(), action, it.getTag(itemHeld, action));
+                    String action = ItemTag.getTag(itemHeld, "DefineAPI");
+                    ActionParser.doAction(PlayerManager.getDefinePlayer(event.getPlayer().getUniqueId()), action, ItemTag.getTag(itemHeld, action));
                 }
             }
         }
